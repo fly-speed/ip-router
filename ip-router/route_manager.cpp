@@ -736,28 +736,27 @@ bool route_manager::remove(const char* key, const char* destination,
 		return false;
 	}
 
-	bool referenced_elsewhere = false;
-	for (std::map<acl::string, key_routes>::const_iterator it
-		= installed_routes.begin(); it != installed_routes.end(); ++it) {
-		if (it == group) {
-			continue;
+	// 从内存路由列表删除时，必须同时删除对应的系统路由。由于一条系统
+	// 主机路由可能被多个 KEY 引用，系统路由删除成功后需要清理所有 KEY
+	// 中相同 IP 和网关的引用，避免留下已经失效的内存记录。
+	if (!delete_system_route(destination, gateway, error)) {
+		return false;
+	}
+	for (std::map<acl::string, key_routes>::iterator it
+		= installed_routes.begin(); it != installed_routes.end();) {
+		key_routes::iterator referenced = it->second.find(destination);
+		if (referenced != it->second.end()
+			&& referenced->second.gateway == gateway) {
+			it->second.erase(referenced);
 		}
-		if (it->second.find(destination) != it->second.end()) {
-			referenced_elsewhere = true;
-			break;
+		if (it->second.empty()) {
+			it = installed_routes.erase(it);
+		} else {
+			++it;
 		}
 	}
-
-	bool success = referenced_elsewhere
-		? true : delete_system_route(destination, gateway, error);
-	if (success) {
-		group->second.erase(target);
-		if (group->second.empty()) {
-			installed_routes.erase(group);
-		}
-		routes_changed.notify_all();
-	}
-	return success;
+	routes_changed.notify_all();
+	return true;
 }
 
 void route_manager::list(std::vector<route_entry>& routes)

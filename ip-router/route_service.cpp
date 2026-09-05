@@ -249,6 +249,7 @@ bool route_delete(HttpRequest& request, HttpResponse& response)
 	acl::json_node& results = json.create_node(true);
 	size_t matched = 0;
 	size_t succeeded = 0;
+	std::set<acl::string> deleted_system_routes;
 	for (std::vector<route_entry>::const_iterator group = routes.begin();
 		group != routes.end(); ++group) {
 		if (has_key && group->key != key) {
@@ -261,13 +262,21 @@ bool route_delete(HttpRequest& request, HttpResponse& response)
 			}
 			++matched;
 			acl::string error;
-			bool success = route_manager::remove(group->key.c_str(),
-				target->ip.c_str(), target->gateway.c_str(), error);
+			acl::string route_id;
+			route_id.format("%s\n%s", target->ip.c_str(),
+				target->gateway.c_str());
+			bool already_deleted = deleted_system_routes.find(route_id)
+				!= deleted_system_routes.end();
+			bool success = already_deleted || route_manager::remove(
+				group->key.c_str(), target->ip.c_str(),
+				target->gateway.c_str(), error);
 			if (success) {
 				++succeeded;
-				logger("route delete succeeded, key=%s, ip=%s, gateway=%s",
+				deleted_system_routes.insert(route_id);
+				logger("route delete succeeded, key=%s, ip=%s, gateway=%s, "
+					"system_already_deleted=%s",
 					group->key.c_str(), target->ip.c_str(),
-					target->gateway.c_str());
+					target->gateway.c_str(), already_deleted ? "yes" : "no");
 			} else {
 				logger_error("route delete failed, key=%s, ip=%s, "
 					"gateway=%s, error=%s", group->key.c_str(),
