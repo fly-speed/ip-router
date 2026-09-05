@@ -9,6 +9,8 @@
 #include <limits>
 #include <map>
 #include <mutex>
+#include <stddef.h>
+#include <stdint.h>
 #include <string.h>
 #include <thread>
 #include <time.h>
@@ -17,17 +19,32 @@
 # include <arpa/inet.h>
 # include <linux/netlink.h>
 # include <linux/rtnetlink.h>
+# include <net/if.h>
 # include <sys/socket.h>
 # include <unistd.h>
 #elif defined(__APPLE__) || defined(__FreeBSD__)
 # include <arpa/inet.h>
 # include <net/route.h>
+# include <net/if.h>
 # include <netinet/in.h>
 # include <sys/socket.h>
+# include <sys/sysctl.h>
 # include <unistd.h>
 #endif
 
 namespace {
+
+#if defined(__linux__) || defined(__APPLE__) || defined(__FreeBSD__)
+bool address_text(const struct in_addr& address, acl::string& output)
+{
+	char buffer[INET_ADDRSTRLEN];
+	if (inet_ntop(AF_INET, &address, buffer, sizeof(buffer)) == NULL) {
+		return false;
+	}
+	output = buffer;
+	return true;
+}
+#endif
 
 std::atomic<unsigned int> route_sequence(0);
 std::mutex routes_mutex;
@@ -176,6 +193,157 @@ bool change_route(int command, const char* destination, const char* gateway,
 	return false;
 }
 
+bool list_system_routes(std::vector<system_route_entry>& routes,
+	acl::string& error)
+{
+	unsigned int sequence = ++route_sequence;
+	int fd = socket(AF_NETLINK, SOCK_RAW, NETLINK_ROUTE);
+	if (fd == -1) {
+		set_error(error, "open NETLINK_ROUTE socket", errno);
+		return false;
+	}
+
+	struct sockaddr_nl local;
+	memset(&local, 0, sizeof(local));
+	local.nl_family = AF_NETLINK;
+	if (bind(fd, reinterpret_cast<struct sockaddr*>(&local),
+		sizeof(local)) == -1) {
+		int code = errno;
+		close(fd);
+		set_error(error, "bind NETLINK_ROUTE socket", code);
+		return false;
+	}
+
+	struct {
+		struct nlmsghdr header;
+		struct rtmsg route;
+	} request;
+	memset(&request, 0, sizeof(request));
+	request.header.nlmsg_len = NLMSG_LENGTH(sizeof(struct rtmsg));
+	request.header.nlmsg_type = RTM_GETROUTE;
+	request.header.nlmsg_flags = NLM_F_REQUEST | NLM_F_DUMP;
+	request.header.nlmsg_seq = sequence;
+	request.route.rtm_family = AF_INET;
+
+	struct sockaddr_nl kernel;
+	memset(&kernel, 0, sizeof(kernel));
+	kernel.nl_family = AF_NETLINK;
+	if (sendto(fd, &request, request.header.nlmsg_len, 0,
+		reinterpret_cast<struct sockaddr*>(&kernel), sizeof(kernel)) == -1) {
+		int code = errno;
+		close(fd);
+		set_error(error, "request system route dump", code);
+		return false;
+	}
+
+	bool done = false;
+	while (!done) {
+		char response[16384];
+		ssize_t received = recv(fd, response, sizeof(response), 0);
+		if (received == -1) {
+			int code = errno;
+			close(fd);
+			set_error(error, "receive system route dump", code);
+			return false;
+		}
+		int remaining = static_cast<int>(received);
+		for (struct nlmsghdr* header
+			= reinterpret_cast<struct nlmsghdr*>(response);
+			NLMSG_OK(header, remaining); header = NLMSG_NEXT(header, remaining)) {
+			if (header->nlmsg_seq != sequence) {
+				continue;
+			}
+			if (header->nlmsg_type == NLMSG_DONE) {
+				done = true;
+				break;
+			}
+			if (header->nlmsg_type == NLMSG_ERROR) {
+				const struct nlmsgerr* result =
+					reinterpret_cast<const struct nlmsgerr*>(NLMSG_DATA(header));
+				int code = result->error == 0 ? EIO : -result->error;
+				close(fd);
+				set_error(error, "dump system routes", code);
+				return false;
+			}
+			if (header->nlmsg_type != RTM_NEWROUTE) {
+				continue;
+			}
+
+			const struct rtmsg* route = reinterpret_cast<const struct rtmsg*>(
+				NLMSG_DATA(header));
+			if (route->rtm_family != AF_INET || route->rtm_dst_len != 32
+				|| route->rtm_protocol != RTPROT_STATIC
+				|| route->rtm_type != RTN_UNICAST) {
+				continue;
+			}
+
+			struct in_addr destination;
+			struct in_addr gateway;
+			memset(&destination, 0, sizeof(destination));
+			memset(&gateway, 0, sizeof(gateway));
+			bool has_destination = false;
+			bool has_gateway = false;
+			unsigned int interface_index = 0;
+			unsigned int table = route->rtm_table;
+			int attributes_length = RTM_PAYLOAD(header);
+			for (struct rtattr* attribute = RTM_RTA(route);
+				RTA_OK(attribute, attributes_length);
+				attribute = RTA_NEXT(attribute, attributes_length)) {
+				switch (attribute->rta_type) {
+				case RTA_DST:
+					if (static_cast<size_t>(RTA_PAYLOAD(attribute))
+						>= sizeof(destination)) {
+						memcpy(&destination, RTA_DATA(attribute),
+							sizeof(destination));
+						has_destination = true;
+					}
+					break;
+				case RTA_GATEWAY:
+					if (static_cast<size_t>(RTA_PAYLOAD(attribute))
+						>= sizeof(gateway)) {
+						memcpy(&gateway, RTA_DATA(attribute), sizeof(gateway));
+						has_gateway = true;
+					}
+					break;
+				case RTA_OIF:
+					if (static_cast<size_t>(RTA_PAYLOAD(attribute))
+						>= sizeof(interface_index)) {
+						memcpy(&interface_index, RTA_DATA(attribute),
+							sizeof(interface_index));
+					}
+					break;
+				case RTA_TABLE:
+					if (static_cast<size_t>(RTA_PAYLOAD(attribute)) >= sizeof(table)) {
+						memcpy(&table, RTA_DATA(attribute), sizeof(table));
+					}
+					break;
+				default:
+					break;
+				}
+			}
+			if (!has_destination || !has_gateway || table != RT_TABLE_MAIN) {
+				continue;
+			}
+
+			acl::string destination_text;
+			acl::string gateway_text;
+			if (!address_text(destination, destination_text)
+				|| !address_text(gateway, gateway_text)) {
+				continue;
+			}
+			char device[IF_NAMESIZE] = { 0 };
+			if (interface_index > 0) {
+				if_indextoname(interface_index, device);
+			}
+			routes.push_back(system_route_entry(destination_text.c_str(),
+				gateway_text.c_str(), device));
+		}
+	}
+
+	close(fd);
+	return true;
+}
+
 #elif defined(__APPLE__) || defined(__FreeBSD__)
 
 bool change_route(int command, const char* destination, const char* gateway,
@@ -248,11 +416,122 @@ bool change_route(int command, const char* destination, const char* gateway,
 	return true;
 }
 
+size_t route_address_size(const struct sockaddr* address)
+{
+# if defined(__APPLE__)
+	const size_t alignment = sizeof(uint32_t);
+# else
+	const size_t alignment = sizeof(long);
+# endif
+	return address->sa_len == 0 ? alignment
+		: (address->sa_len + alignment - 1) & ~(alignment - 1);
+}
+
+bool is_ipv4_host_mask(const struct sockaddr* address)
+{
+	const size_t offset = offsetof(struct sockaddr_in, sin_addr);
+	if (address == NULL || address->sa_len < offset + sizeof(struct in_addr)) {
+		return false;
+	}
+	struct in_addr mask;
+	memcpy(&mask, reinterpret_cast<const char*>(address) + offset,
+		sizeof(mask));
+	return mask.s_addr == 0xffffffffU;
+}
+
+bool list_system_routes(std::vector<system_route_entry>& routes,
+	acl::string& error)
+{
+	int mib[6] = { CTL_NET, PF_ROUTE, 0, AF_INET, NET_RT_DUMP, 0 };
+	size_t required = 0;
+	if (sysctl(mib, 6, NULL, &required, NULL, 0) == -1) {
+		set_error(error, "get system route dump size", errno);
+		return false;
+	}
+
+	std::vector<char> buffer(required);
+	if (required > 0
+		&& sysctl(mib, 6, &buffer[0], &required, NULL, 0) == -1) {
+		set_error(error, "read system route dump", errno);
+		return false;
+	}
+
+	const char* cursor = required > 0 ? &buffer[0] : NULL;
+	const char* end = cursor == NULL ? NULL : cursor + required;
+	while (cursor != NULL
+		&& cursor + sizeof(struct rt_msghdr) <= end) {
+		const struct rt_msghdr* header =
+			reinterpret_cast<const struct rt_msghdr*>(cursor);
+		if (header->rtm_msglen < sizeof(struct rt_msghdr)
+			|| cursor + header->rtm_msglen > end) {
+			error = "system route dump contains an invalid message";
+			return false;
+		}
+		const int required_flags = RTF_UP | RTF_GATEWAY | RTF_STATIC;
+		if ((header->rtm_flags & required_flags) == required_flags) {
+			const char* address_cursor = reinterpret_cast<const char*>(header + 1);
+			const char* message_end = cursor + header->rtm_msglen;
+			const struct sockaddr_in* destination = NULL;
+			const struct sockaddr_in* gateway = NULL;
+			const struct sockaddr* netmask = NULL;
+			for (unsigned int bit = 1; bit != 0 && address_cursor < message_end;
+				bit <<= 1) {
+				if ((static_cast<unsigned int>(header->rtm_addrs) & bit) == 0) {
+					continue;
+				}
+				const struct sockaddr* address =
+					reinterpret_cast<const struct sockaddr*>(address_cursor);
+				size_t length = route_address_size(address);
+				if (address_cursor + length > message_end) {
+					break;
+				}
+				if (address->sa_family == AF_INET) {
+					if (bit == RTA_DST) {
+						destination = reinterpret_cast<const struct sockaddr_in*>(
+							address);
+					} else if (bit == RTA_GATEWAY) {
+						gateway = reinterpret_cast<const struct sockaddr_in*>(address);
+					}
+				}
+				if (bit == RTA_NETMASK) {
+					netmask = address;
+				}
+				address_cursor += length;
+			}
+
+			if (destination != NULL && gateway != NULL
+				&& ((header->rtm_flags & RTF_HOST) != 0
+					|| is_ipv4_host_mask(netmask))) {
+				acl::string destination_text;
+				acl::string gateway_text;
+				if (address_text(destination->sin_addr, destination_text)
+					&& address_text(gateway->sin_addr, gateway_text)) {
+					char device[IF_NAMESIZE] = { 0 };
+					if (header->rtm_index > 0) {
+						if_indextoname(header->rtm_index, device);
+					}
+					routes.push_back(system_route_entry(
+						destination_text.c_str(), gateway_text.c_str(), device));
+				}
+			}
+		}
+		cursor += header->rtm_msglen;
+	}
+	return true;
+}
+
 #else
 
 bool change_route(int, const char*, const char*, acl::string& error)
 {
 	error = "route management is unsupported on this operating system";
+	return false;
+}
+
+bool list_system_routes(std::vector<system_route_entry>&,
+	acl::string& error)
+{
+	error = "system route listing is unsupported on this operating system";
 	return false;
 }
 
@@ -498,4 +777,56 @@ void route_manager::list(std::vector<route_entry>& routes)
 				static_cast<long long>(target->second.expires_at)));
 		}
 	}
+}
+
+bool route_manager::list_system(std::vector<system_route_entry>& routes,
+	acl::string& error)
+{
+	routes.clear();
+	error.clear();
+	return list_system_routes(routes, error);
+}
+
+bool route_manager::remove_system(const char* destination,
+	const char* gateway, acl::string& error)
+{
+	std::lock_guard<std::mutex> guard(routes_mutex);
+	std::vector<system_route_entry> system_routes;
+	if (!list_system_routes(system_routes, error)) {
+		return false;
+	}
+	bool found = false;
+	for (std::vector<system_route_entry>::const_iterator it
+		= system_routes.begin(); it != system_routes.end(); ++it) {
+		if (it->ip == destination && it->gateway == gateway) {
+			found = true;
+			break;
+		}
+	}
+	if (!found) {
+		error.format("system static host route not found: %s via %s",
+			destination, gateway);
+		return false;
+	}
+
+	if (!delete_system_route(destination, gateway, error)) {
+		return false;
+	}
+
+	// 系统路由已经删除时，同步移除所有 KEY 对该 IP/网关的内存引用，
+	// 避免内存列表继续展示一条实际上已经不存在的系统路由。
+	for (std::map<acl::string, key_routes>::iterator group
+		= installed_routes.begin(); group != installed_routes.end();) {
+		key_routes::iterator target = group->second.find(destination);
+		if (target != group->second.end() && target->second.gateway == gateway) {
+			group->second.erase(target);
+		}
+		if (group->second.empty()) {
+			group = installed_routes.erase(group);
+		} else {
+			++group;
+		}
+	}
+	routes_changed.notify_all();
+	return true;
 }

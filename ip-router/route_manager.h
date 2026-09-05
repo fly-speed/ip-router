@@ -21,6 +21,17 @@ public:
 	std::vector<route_target> targets;
 };
 
+class system_route_entry {
+public:
+	system_route_entry(const char* destination, const char* next_hop,
+		const char* device)
+	: ip(destination), gateway(next_hop), interface_name(device) {}
+
+	acl::string ip;
+	acl::string gateway;
+	acl::string interface_name;
+};
+
 class route_manager {
 public:
 	static void start(void);
@@ -31,4 +42,8 @@ public:
 	static bool remove(const char* key, const char* destination,
 		const char* gateway, acl::string& error);
 	static void list(std::vector<route_entry>& routes);
+	static bool list_system(std::vector<system_route_entry>& routes,
+		acl::string& error);
+	static bool remove_system(const char* destination, const char* gateway,
+		acl::string& error);
 };

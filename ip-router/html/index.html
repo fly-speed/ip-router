@@ -80,6 +80,16 @@
     .notice.success { display: block; color: #027a48; background: #ecfdf3; border-color: #abefc6; }
     .notice.warning { display: block; color: #b54708; background: #fffaeb; border-color: #fedf89; }
     .notice.error { display: block; color: #b42318; background: #fef3f2; border-color: #fecdca; }
+    .list-section { margin-top: 20px; }
+    .list-heading {
+      display: flex;
+      align-items: end;
+      justify-content: space-between;
+      gap: 16px;
+      margin: 0 2px 10px;
+    }
+    .list-heading h2 { margin: 0; font-size: 18px; }
+    .list-heading p { margin: 0; font-size: 13px; }
     .table-card { overflow-x: auto; }
     table { width: 100%; border-collapse: collapse; }
     th, td {
@@ -112,6 +122,7 @@
       <div class="actions">
         <a id="refresh" href="/">刷新</a>
         <a href="/routes">查看 JSON</a>
+        <a href="/system-routes">系统 JSON</a>
       </div>
     </header>
     <div class="controls">
@@ -155,27 +166,56 @@
       </section>
     </div>
     <div id="notice" class="notice" role="status" aria-live="polite"></div>
-    <div class="card table-card">
-      <table>
-        <thead>
-          <tr>
-            <th>KEY</th>
-            <th>目标 IP</th>
-            <th>网关</th>
-            <th>TTL</th>
-            <th>过期时间</th>
-            <th>操作</th>
-          </tr>
-        </thead>
-        <tbody id="route-rows">
-          <tr><td class="empty" colspan="6">正在加载…</td></tr>
-        </tbody>
-      </table>
-    </div>
+    <section class="list-section">
+      <div class="list-heading">
+        <h2>服务内存路由</h2>
+        <p>包含 KEY、TTL 等服务管理信息</p>
+      </div>
+      <div class="card table-card">
+        <table>
+          <thead>
+            <tr>
+              <th>KEY</th>
+              <th>目标 IP</th>
+              <th>网关</th>
+              <th>TTL</th>
+              <th>过期时间</th>
+              <th>操作</th>
+            </tr>
+          </thead>
+          <tbody id="route-rows">
+            <tr><td class="empty" colspan="6">正在加载…</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+    <section class="list-section">
+      <div class="list-heading">
+        <h2>系统静态主机路由</h2>
+        <p id="system-summary">正在直接读取系统路由表…</p>
+      </div>
+      <div class="card table-card">
+        <table>
+          <thead>
+            <tr>
+              <th>目标 IP</th>
+              <th>网关</th>
+              <th>网络接口</th>
+              <th>操作</th>
+            </tr>
+          </thead>
+          <tbody id="system-route-rows">
+            <tr><td class="empty" colspan="4">正在加载…</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
   </main>
   <script>
     const summary = document.getElementById("summary");
     const rows = document.getElementById("route-rows");
+    const systemSummary = document.getElementById("system-summary");
+    const systemRows = document.getElementById("system-route-rows");
     const notice = document.getElementById("notice");
 
     function addCell(row, value, className, code) {
@@ -195,19 +235,27 @@
       rows.appendChild(row);
     }
 
+    function showSystemMessage(message) {
+      systemRows.replaceChildren();
+      const row = document.createElement("tr");
+      addCell(row, message, "empty");
+      row.firstChild.colSpan = 4;
+      systemRows.appendChild(row);
+    }
+
     function showNotice(message, type) {
       notice.textContent = message;
       notice.className = `notice ${type}`;
     }
 
-    async function routeRequest(method, parameters) {
+    async function routeRequest(method, parameters, path = "/route") {
       const query = new URLSearchParams();
       Object.entries(parameters).forEach(([name, value]) => {
         if (value !== "" && value !== null && value !== undefined) {
           query.set(name, value);
         }
       });
-      const response = await fetch(`/route?${query}`, { method });
+      const response = await fetch(`${path}?${query}`, { method });
       const data = await response.json().catch(() => ({}));
       if (!response.ok) {
         throw new Error(data.message || `HTTP ${response.status}`);
@@ -227,9 +275,32 @@
         try {
           const data = await routeRequest("DELETE", { key, ip });
           showNotice(data.message || "路由已删除", data.success ? "success" : "warning");
-          await loadRoutes();
+          await loadAllRoutes();
         } catch (error) {
           showNotice(`删除失败：${error.message}`, "error");
+        } finally {
+          button.disabled = false;
+        }
+      });
+      cell.appendChild(button);
+      row.appendChild(cell);
+    }
+
+    function addSystemDeleteButton(row, ip, gateway) {
+      const cell = document.createElement("td");
+      const button = document.createElement("button");
+      button.type = "button";
+      button.className = "danger small";
+      button.textContent = "从系统删除";
+      button.addEventListener("click", async () => {
+        if (!window.confirm(`确定从系统路由表删除 ${ip}（网关 ${gateway}）吗？`)) return;
+        button.disabled = true;
+        try {
+          const data = await routeRequest("DELETE", { ip, gateway }, "/system-route");
+          showNotice(data.message || "系统路由已删除", "success");
+          await loadAllRoutes();
+        } catch (error) {
+          showNotice(`系统路由删除失败：${error.message}`, "error");
         } finally {
           button.disabled = false;
         }
@@ -283,9 +354,42 @@
       }
     }
 
+    function renderSystemRoutes(routes) {
+      systemSummary.textContent = `从系统路由表读取到 ${routes.length} 条静态主机路由`;
+      systemRows.replaceChildren();
+      if (routes.length === 0) {
+        showSystemMessage("系统中没有匹配的静态主机路由");
+        return;
+      }
+      routes.forEach((route) => {
+        const row = document.createElement("tr");
+        addCell(row, route.ip || "");
+        addCell(row, route.gateway || "");
+        addCell(row, route.interface || "—");
+        addSystemDeleteButton(row, route.ip || "", route.gateway || "");
+        systemRows.appendChild(row);
+      });
+    }
+
+    async function loadSystemRoutes() {
+      try {
+        const response = await fetch("/system-routes", { cache: "no-store" });
+        const data = await response.json().catch(() => ({}));
+        if (!response.ok) throw new Error(data.message || `HTTP ${response.status}`);
+        renderSystemRoutes(Array.isArray(data.routes) ? data.routes : []);
+      } catch (error) {
+        systemSummary.textContent = "系统路由表加载失败";
+        showSystemMessage(`加载失败：${error.message}`);
+      }
+    }
+
+    async function loadAllRoutes() {
+      await Promise.all([loadRoutes(), loadSystemRoutes()]);
+    }
+
     document.getElementById("refresh").addEventListener("click", (event) => {
       event.preventDefault();
-      loadRoutes();
+      loadAllRoutes();
     });
 
     document.getElementById("add-form").addEventListener("submit", async (event) => {
@@ -299,7 +403,7 @@
         const count = data.count === undefined ? 1 : data.count;
         const succeeded = data.succeeded === undefined ? 1 : data.succeeded;
         showNotice(`添加完成：成功 ${succeeded}/${count} 条`, data.success ? "success" : "warning");
-        await loadRoutes();
+        await loadAllRoutes();
       } catch (error) {
         showNotice(`添加失败：${error.message}`, "error");
       } finally {
@@ -322,14 +426,14 @@
         const data = await routeRequest("DELETE", values);
         showNotice(`删除完成：成功 ${data.succeeded}/${data.count} 条`,
           data.success ? "success" : "warning");
-        await loadRoutes();
+        await loadAllRoutes();
       } catch (error) {
         showNotice(`删除失败：${error.message}`, "error");
       } finally {
         button.disabled = false;
       }
     });
-    loadRoutes();
+    loadAllRoutes();
   </script>
 </body>
 </html>

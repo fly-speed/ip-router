@@ -20,6 +20,8 @@ ip router，快捷访问网络。
 - `GET /health`：健康检查。
 - `GET /`：显示路由管理 HTML 页面，可添加、批量删除及逐条删除路由。
 - `GET /routes`：以字符串 `key` 分组，列出本服务成功设置且尚未删除的全部 IP 路由。
+- `GET /system-routes`：直接读取系统路由表，列出静态 IPv4 主机路由及其网关和网络接口。
+- `DELETE /system-route?ip=<目标IPv4>&gateway=<网关IPv4>`：直接删除指定的系统静态主机路由。
 - `POST /route?ip=<目标IPv4>&gateway=<网关IPv4>&key=<字符串KEY>&ttl=<秒>`：向指定 KEY 添加或替换一个目标 IP 的主机路由。
 - `POST /route?ips=<IPv4列表>&gateway=<网关IPv4>&key=<字符串KEY>&ttl=<秒>`：为同一 KEY 批量添加多个 IP，IP 之间用逗号、分号或空白分隔。
 - `DELETE /route?key=<字符串KEY>`：删除指定 KEY 下的全部 IP 路由。

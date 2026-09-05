@@ -378,6 +378,60 @@ bool route_list(HttpRequest&, HttpResponse& response)
 	return response.write(json);
 }
 
+bool system_route_list(HttpRequest&, HttpResponse& response)
+{
+	std::vector<system_route_entry> routes;
+	acl::string error;
+	if (!route_manager::list_system(routes, error)) {
+		logger_error("list system routes failed, error=%s", error.c_str());
+		return reply_json(response, 500, false, error.c_str());
+	}
+
+	response.setStatus(200);
+	response.setContentType("application/json; charset=utf-8");
+	acl::json json;
+	acl::json_node& root = json.get_root();
+	acl::json_node& items = json.create_node(true);
+	for (std::vector<system_route_entry>::const_iterator it = routes.begin();
+		it != routes.end(); ++it) {
+		items.add_child(json.create_node()
+			.add_text("ip", it->ip.c_str())
+			.add_text("gateway", it->gateway.c_str())
+			.add_text("interface", it->interface_name.c_str()));
+	}
+	root.add_bool("success", true)
+		.add_number("count", static_cast<long long>(routes.size()))
+		.add_child("routes", items);
+	return response.write(json);
+}
+
+bool system_route_delete(HttpRequest& request, HttpResponse& response)
+{
+	const char* destination = parameter(request, "ip", "target");
+	const char* gateway = parameter(request, "gateway", "route");
+	if (!route_manager::valid_ipv4(destination)) {
+		return reply_json(response, 400, false,
+			"parameter 'ip' must be a valid IPv4 address");
+	}
+	if (!route_manager::valid_ipv4(gateway)) {
+		return reply_json(response, 400, false,
+			"parameter 'gateway' must be a valid IPv4 address");
+	}
+
+	acl::string error;
+	if (!route_manager::remove_system(destination, gateway, error)) {
+		logger_error("system route delete failed, ip=%s, gateway=%s, error=%s",
+			destination, gateway, error.c_str());
+		return reply_json(response, 500, false, error.c_str(), destination,
+			gateway);
+	}
+
+	logger("system route delete succeeded, ip=%s, gateway=%s",
+		destination, gateway);
+	return reply_json(response, 200, true, "system route deleted",
+		destination, gateway);
+}
+
 } // namespace
 
 void register_route_service(http_service& service)
@@ -386,6 +440,8 @@ void register_route_service(http_service& service)
 	service.Get("/", route_page)
 		.Get("/health", health)
 		.Get("/routes", route_list)
+		.Get("/system-routes", system_route_list)
 		.Post("/route", route_add)
-		.Delete("/route", route_delete);
+		.Delete("/route", route_delete)
+		.Delete("/system-route", system_route_delete);
 }
