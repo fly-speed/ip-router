@@ -1,34 +1,29 @@
 #include "stdafx.h"
+#include "dgate_service.h"
 #include "master_service.h"
 
 //////////////////////////////////////////////////////////////////////////////
-// ÅäÖÃÄÚÈÝÏî
+// é…ç½®å†…å®¹é¡¹
 
-char *var_cfg_str;
+char *var_cfg_upstream_addr;
 acl::master_str_tbl var_conf_str_tab[] = {
-	{ "str", "test_msg", &var_cfg_str },
+	{ "upstream_addr", "114.114.114.114|53", &var_cfg_upstream_addr },
 
 	{ 0, 0, 0 }
 };
 
-int  var_cfg_bool;
 acl::master_bool_tbl var_conf_bool_tab[] = {
-	{ "bool", 1, &var_cfg_bool },
-
 	{ 0, 0, 0 }
 };
 
-int  var_cfg_int;
+int  var_cfg_upstream_timeout;
 acl::master_int_tbl var_conf_int_tab[] = {
-	{ "int", 120, &var_cfg_int, 0, 0 },
+	{ "upstream_timeout", 5, &var_cfg_upstream_timeout, 1, 300 },
 
 	{ 0, 0 , 0 , 0, 0 }
 };
 
-long long int  var_cfg_int64;
 acl::master_int64_tbl var_conf_int64_tab[] = {
-	{ "int64", 120, &var_cfg_int64, 0, 0 },
-
 	{ 0, 0 , 0 , 0, 0 }
 };
 
@@ -42,31 +37,17 @@ master_service::~master_service(void)
 {
 }
 
-static acl::atomic_long __counter;
-
 void master_service::on_read(acl::socket_stream* stream)
 {
-	int   n;
-	char  buf[512];
+	char buf[65536];
+	int n = stream->read(buf, sizeof(buf), false);
 
-	if ((n = stream->read(buf, sizeof(buf), false)) == -1) {
+	if (n == -1) {
 		return;
 	}
 
-	long long cnt = ++__counter;
-
-	if (cnt < 100) {
-		buf[n] = 0;
-		logger("read from %s, %d bytes: %s", stream->get_peer(), n, buf);
-	} else if (cnt % 10000 == 0) {
-		buf[n] = 0;
-
-		char tmp[1024];
-		snprintf(tmp, sizeof(tmp), "count=%lld, %s", cnt, buf);
-		acl::meter_time("Read udp", __LINE__, tmp);
-	}
-
-	stream->write(buf, n);
+	dgate_push_request(stream, stream->get_peer(true), buf,
+		static_cast<size_t>(n));
 }
 
 void master_service::thread_on_init(void)
@@ -81,7 +62,9 @@ void master_service::proc_on_bind(acl::socket_stream&)
 
 void master_service::proc_on_init(void)
 {
-	logger(">>>proc_on_init<<<");
+	logger("DNS proxy upstream=%s, timeout=%d seconds",
+		var_cfg_upstream_addr, var_cfg_upstream_timeout);
+	dgate_service_start();
 }
 
 void master_service::proc_on_exit(void)

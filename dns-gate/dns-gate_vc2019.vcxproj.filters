@@ -15,6 +15,9 @@
     </Filter>
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="dgate_service.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
     <ClCompile Include="main.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
@@ -26,6 +29,9 @@
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="dgate_service.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
     <ClInclude Include="master_service.h">
       <Filter>头文件</Filter>
     </ClInclude>

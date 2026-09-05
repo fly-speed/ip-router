@@ -1,5 +1,5 @@
-// stdafx.h : ±ê×¼ÏµÍ³°üº¬ÎÄ¼şµÄ°üº¬ÎÄ¼ş£¬
-// »òÊÇ³£ÓÃµ«²»³£¸ü¸ÄµÄÏîÄ¿ÌØ¶¨µÄ°üº¬ÎÄ¼ş
+// stdafx.h : æ ‡å‡†ç³»ç»ŸåŒ…å«æ–‡ä»¶çš„åŒ…å«æ–‡ä»¶ï¼Œ
+// æˆ–æ˜¯å¸¸ç”¨ä½†ä¸å¸¸æ›´æ”¹çš„é¡¹ç›®ç‰¹å®šçš„åŒ…å«æ–‡ä»¶
 //
 
 #pragma once
@@ -8,10 +8,12 @@
 //#include <iostream>
 //#include <tchar.h>
 
-// TODO: ÔÚ´Ë´¦ÒıÓÃ³ÌĞòÒªÇóµÄ¸½¼ÓÍ·ÎÄ¼ş
+// TODO: åœ¨æ­¤å¤„å¼•ç”¨ç¨‹åºè¦æ±‚çš„é™„åŠ å¤´æ–‡ä»¶
 
 #include <acl-lib/acl_cpp/lib_acl.hpp>
 #include <acl-lib/acl/lib_acl.h>
+#include <acl-lib/fiber/go_fiber.hpp>
+#include <acl-lib/fiber/libfiber.hpp>
 
 #ifdef	WIN32
 #define	snprintf _snprintf

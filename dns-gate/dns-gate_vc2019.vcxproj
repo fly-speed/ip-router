@@ -330,6 +330,7 @@
     </PreBuildEvent>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClCompile Include="dgate_service.cpp" />
     <ClCompile Include="main.cpp" />
     <ClCompile Include="master_service.cpp" />
     <ClCompile Include="stdafx.cpp">
@@ -344,6 +345,7 @@
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="dgate_service.h" />
     <ClInclude Include="master_service.h" />
     <ClInclude Include="stdafx.h" />
   </ItemGroup>

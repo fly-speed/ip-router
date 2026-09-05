@@ -141,7 +141,7 @@ EXTLIBS =
 #	  -L$(ACL_PATH)/lib_protocol/lib -lprotocol \
 #	  -L$(ACL_PATH)/lib_acl/lib -lacl \
 #	  $(EXTLIBS) $(SYSLIB)
-LDFLAGS = -lacl_all \
+LDFLAGS = -lfiber_cpp -lacl_all -lfiber \
 	  $(EXTLIBS) $(SYSLIB)
 
 COMPILE = $(CC) $(CFLAGS)
