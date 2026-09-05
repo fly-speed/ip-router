@@ -398,11 +398,13 @@ bool route_manager::add(const char* destination, const char* gateway,
 		}
 		expires_at = now + static_cast<time_t>(ttl);
 	}
+	// 先检查当前 KEY 下是否已经保存了该目标 IP，避免重复操作系统路由表。
 	std::map<acl::string, key_routes>::iterator existing_group
 		= installed_routes.find(key);
 	if (existing_group != installed_routes.end()) {
 		key_routes::iterator existing
 			= existing_group->second.find(destination);
+		// 相同 KEY、IP 和网关的重复添加视为幂等更新，只刷新 TTL 和过期时间。
 		if (existing != existing_group->second.end()
 			&& existing->second.gateway == gateway) {
 			existing->second = route_metadata(gateway,
@@ -411,18 +413,21 @@ bool route_manager::add(const char* destination, const char* gateway,
 			return true;
 		}
 	}
+	// 再检查其他 KEY 是否已经引用该 IP，以支持多个 KEY 共享同一条系统路由。
 	for (std::map<acl::string, key_routes>::const_iterator group
 		= installed_routes.begin(); group != installed_routes.end(); ++group) {
 		key_routes::const_iterator existing = group->second.find(destination);
 		if (existing == group->second.end()) {
 			continue;
 		}
+		// 同一目标 IP 只能对应一个实际网关，否则内存索引会与系统路由不一致。
 		if (existing->second.gateway != gateway) {
 			error.format("IP %s already uses gateway %s under key %s",
 				destination, existing->second.gateway.c_str(),
 				group->first.c_str());
 			return false;
 		}
+		// 网关相同时仅增加当前 KEY 的引用，无需重复添加系统路由。
 		installed_routes[key][destination]
 			= route_metadata(gateway, ttl > 0 ? ttl : 0, expires_at);
 		routes_changed.notify_all();
@@ -436,6 +441,7 @@ bool route_manager::add(const char* destination, const char* gateway,
 #else
 	success = change_route(0, destination, gateway, error);
 #endif
+	// 只有在成功添加系统路由后才更新内存索引，否则可能导致内存索引与系统路由不一致。
 	if (success) {
 		installed_routes[key][destination]
 			= route_metadata(gateway, ttl > 0 ? ttl : 0, expires_at);
