@@ -17,3 +17,7 @@ Sessionx.vim
 tags
 # Persistent undo
 [._]*.un~
+
+# ip-router runtime state
+ip-router/routes.db
+ip-router/routes.db.tmp

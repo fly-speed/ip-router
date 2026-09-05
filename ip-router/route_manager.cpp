@@ -6,11 +6,15 @@
 #include <condition_variable>
 #include <cstdlib>
 #include <errno.h>
+#include <fstream>
 #include <limits>
 #include <map>
 #include <mutex>
+#include <set>
 #include <stddef.h>
 #include <stdint.h>
+#include <stdio.h>
+#include <string>
 #include <string.h>
 #include <thread>
 #include <time.h>
@@ -52,6 +56,7 @@ std::condition_variable routes_changed;
 std::thread expiration_worker;
 bool worker_started = false;
 bool worker_stopping = false;
+const char* const routes_file = "routes.db";
 
 class route_metadata {
 public:
@@ -69,6 +74,50 @@ public:
 
 typedef std::map<acl::string, route_metadata> key_routes;
 std::map<acl::string, key_routes> installed_routes;
+
+void set_error(acl::string& error, const char* operation, int code);
+
+bool save_routes_locked(acl::string& error)
+{
+	std::string temporary(routes_file);
+	temporary.append(".tmp");
+	std::ofstream output(temporary.c_str(),
+		std::ios::out | std::ios::binary | std::ios::trunc);
+	if (!output.is_open()) {
+		set_error(error, "open temporary route database", errno);
+		return false;
+	}
+
+	output << "# ip-router routes v1\n";
+	for (std::map<acl::string, key_routes>::const_iterator group
+		= installed_routes.begin(); group != installed_routes.end(); ++group) {
+		for (key_routes::const_iterator target = group->second.begin();
+			target != group->second.end(); ++target) {
+			output << group->first.c_str() << '\t' << target->first.c_str()
+				<< '\t' << target->second.gateway.c_str() << '\t'
+				<< target->second.ttl << '\t' << target->second.expires_at
+				<< '\n';
+		}
+	}
+	output.flush();
+	if (!output.good()) {
+		output.close();
+		error = "write temporary route database failed";
+		return false;
+	}
+	output.close();
+
+#if defined(_WIN32) || defined(_WIN64)
+	// Windows 的 rename 不能覆盖现有文件；该平台当前不支持系统路由操作，
+	// 这里仍保留可编译的持久化实现。
+	::remove(routes_file);
+#endif
+	if (::rename(temporary.c_str(), routes_file) != 0) {
+		set_error(error, "replace route database", errno);
+		return false;
+	}
+	return true;
+}
 
 void set_error(acl::string& error, const char* operation, int code)
 {
@@ -549,11 +598,181 @@ bool delete_system_route(const char* destination, const char* gateway,
 #endif
 }
 
+bool add_system_route(const char* destination, const char* gateway,
+	acl::string& error)
+{
+#if defined(__linux__)
+	return change_route(RTM_NEWROUTE, destination, gateway, error);
+#elif defined(__APPLE__) || defined(__FreeBSD__)
+	return change_route(RTM_ADD, destination, gateway, error);
+#else
+	return change_route(0, destination, gateway, error);
+#endif
+}
+
+bool valid_saved_key(const std::string& key)
+{
+	if (key.empty() || key.size() > 256) {
+		return false;
+	}
+	for (std::string::const_iterator it = key.begin(); it != key.end(); ++it) {
+		unsigned char ch = static_cast<unsigned char>(*it);
+		if (ch < 0x20 || ch == 0x7f) {
+			return false;
+		}
+	}
+	return true;
+}
+
+bool parse_saved_number(const std::string& value, long long& number)
+{
+	errno = 0;
+	char* end = NULL;
+	number = strtoll(value.c_str(), &end, 10);
+	return errno == 0 && end != value.c_str() && *end == 0;
+}
+
+struct saved_route {
+	std::string key;
+	std::string ip;
+	std::string gateway;
+	long long ttl;
+	long long expires_at;
+};
+
+bool load_routes_locked(acl::string& error)
+{
+	std::ifstream input(routes_file, std::ios::in | std::ios::binary);
+	if (!input.is_open()) {
+		if (errno == ENOENT) {
+			return true;
+		}
+		set_error(error, "open route database", errno);
+		return false;
+	}
+
+	std::vector<saved_route> saved;
+	std::string line;
+	size_t line_number = 0;
+	while (std::getline(input, line)) {
+		++line_number;
+		if (line_number == 1 && line == "# ip-router routes v1") {
+			continue;
+		}
+		if (line.empty()) {
+			continue;
+		}
+		std::vector<std::string> fields;
+		std::string::size_type begin = 0;
+		for (;;) {
+			std::string::size_type separator = line.find('\t', begin);
+			fields.push_back(line.substr(begin, separator == std::string::npos
+				? std::string::npos : separator - begin));
+			if (separator == std::string::npos) {
+				break;
+			}
+			begin = separator + 1;
+		}
+		long long ttl = 0;
+		long long expires_at = 0;
+		if (fields.size() != 5 || !valid_saved_key(fields[0])
+			|| !route_manager::valid_ipv4(fields[1].c_str())
+			|| !route_manager::valid_ipv4(fields[2].c_str())
+			|| !parse_saved_number(fields[3], ttl)
+			|| !parse_saved_number(fields[4], expires_at)
+			|| ttl < 0 || expires_at < 0) {
+			logger_error("ignore invalid route database record at line %lu",
+				static_cast<unsigned long>(line_number));
+			continue;
+		}
+		saved_route record;
+		record.key = fields[0];
+		record.ip = fields[1];
+		record.gateway = fields[2];
+		record.ttl = ttl;
+		record.expires_at = expires_at;
+		saved.push_back(record);
+	}
+	if (!input.eof() && input.fail()) {
+		error = "read route database failed";
+		return false;
+	}
+
+	time_t now = time(NULL);
+	std::map<std::string, std::string> active_system_routes;
+	std::set<std::string> expired_system_routes;
+	bool restore_failed = false;
+	for (std::vector<saved_route>::const_iterator it = saved.begin();
+		it != saved.end(); ++it) {
+		std::string route_id = it->ip + "\n" + it->gateway;
+		if (it->expires_at > 0
+			&& it->expires_at <= static_cast<long long>(now)) {
+			expired_system_routes.insert(route_id);
+			continue;
+		}
+		std::map<std::string, std::string>::const_iterator active
+			= active_system_routes.find(it->ip);
+		if (active != active_system_routes.end()
+			&& active->second != it->gateway) {
+			logger_error("ignore conflicting persisted route, key=%s, ip=%s, "
+				"gateway=%s, active_gateway=%s", it->key.c_str(),
+				it->ip.c_str(), it->gateway.c_str(), active->second.c_str());
+			continue;
+		}
+		if (active == active_system_routes.end()) {
+			acl::string system_error;
+			if (!add_system_route(it->ip.c_str(), it->gateway.c_str(),
+				system_error)) {
+				logger_error("restore persisted route failed, key=%s, ip=%s, "
+					"gateway=%s, error=%s", it->key.c_str(), it->ip.c_str(),
+					it->gateway.c_str(), system_error.c_str());
+				restore_failed = true;
+				continue;
+			}
+			active_system_routes[it->ip] = it->gateway;
+		}
+		installed_routes[it->key.c_str()][it->ip.c_str()] = route_metadata(
+			it->gateway.c_str(), it->ttl,
+			static_cast<time_t>(it->expires_at));
+		logger("restored persisted route, key=%s, ip=%s, gateway=%s, "
+			"ttl=%lld, expires_at=%lld", it->key.c_str(), it->ip.c_str(),
+			it->gateway.c_str(), it->ttl, it->expires_at);
+	}
+
+	for (std::set<std::string>::const_iterator it = expired_system_routes.begin();
+		it != expired_system_routes.end(); ++it) {
+		std::string::size_type separator = it->find('\n');
+		std::string destination = it->substr(0, separator);
+		if (active_system_routes.find(destination)
+			!= active_system_routes.end()) {
+			continue;
+		}
+		std::string gateway = it->substr(separator + 1);
+		acl::string system_error;
+		if (!delete_system_route(destination.c_str(), gateway.c_str(),
+			system_error)) {
+			logger_error("delete expired persisted route failed, ip=%s, "
+				"gateway=%s, error=%s", destination.c_str(), gateway.c_str(),
+				system_error.c_str());
+		}
+	}
+
+	// 系统路由恢复失败时保留原数据库，避免因为一次临时权限或网络问题
+	// 永久丢失持久化记录，等待下次启动时再次尝试恢复。
+	if (restore_failed) {
+		error = "one or more persisted routes could not be restored";
+		return false;
+	}
+	// 重写数据库以移除过期、无效或冲突的记录。
+	return save_routes_locked(error);
+}
+
 void expire_routes(void)
 {
 	std::unique_lock<std::mutex> lock(routes_mutex);
 	while (!worker_stopping) {
 		time_t now = time(NULL);
+		bool changed = false;
 		for (std::map<acl::string, key_routes>::iterator group
 			= installed_routes.begin(); group != installed_routes.end();) {
 			for (key_routes::iterator target = group->second.begin();
@@ -589,6 +808,7 @@ void expire_routes(void)
 						group->first.c_str(), target->first.c_str(),
 						metadata.gateway.c_str());
 					target = group->second.erase(target);
+					changed = true;
 				} else {
 					logger_error("delete expired route failed, key=%s, ip=%s, "
 						"gateway=%s, error=%s", group->first.c_str(),
@@ -601,6 +821,13 @@ void expire_routes(void)
 				group = installed_routes.erase(group);
 			} else {
 				++group;
+			}
+		}
+		if (changed) {
+			acl::string persist_error;
+			if (!save_routes_locked(persist_error)) {
+				logger_error("persist routes after expiration failed, error=%s",
+					persist_error.c_str());
 			}
 		}
 
@@ -620,6 +847,12 @@ void route_manager::start(void)
 	}
 	worker_started = true;
 	worker_stopping = false;
+	installed_routes.clear();
+	acl::string error;
+	if (!load_routes_locked(error)) {
+		logger_error("load persisted routes failed, file=%s, error=%s",
+			routes_file, error.c_str());
+	}
 	expiration_worker = std::thread(expire_routes);
 	std::atexit(route_manager::stop);
 }
@@ -667,6 +900,7 @@ bool route_manager::add(const char* destination, const char* gateway,
 		}
 		expires_at = now + static_cast<time_t>(ttl);
 	}
+	const std::map<acl::string, key_routes> previous_routes = installed_routes;
 	// 先检查当前 KEY 下是否已经保存了该目标 IP，避免重复操作系统路由表。
 	std::map<acl::string, key_routes>::iterator existing_group
 		= installed_routes.find(key);
@@ -678,6 +912,12 @@ bool route_manager::add(const char* destination, const char* gateway,
 			&& existing->second.gateway == gateway) {
 			existing->second = route_metadata(gateway,
 				ttl > 0 ? ttl : 0, expires_at);
+			acl::string persist_error;
+			if (!save_routes_locked(persist_error)) {
+				installed_routes = previous_routes;
+				error = persist_error;
+				return false;
+			}
 			routes_changed.notify_all();
 			return true;
 		}
@@ -699,24 +939,38 @@ bool route_manager::add(const char* destination, const char* gateway,
 		// 网关相同时仅增加当前 KEY 的引用，无需重复添加系统路由。
 		installed_routes[key][destination]
 			= route_metadata(gateway, ttl > 0 ? ttl : 0, expires_at);
+		acl::string persist_error;
+		if (!save_routes_locked(persist_error)) {
+			installed_routes = previous_routes;
+			error = persist_error;
+			return false;
+		}
 		routes_changed.notify_all();
 		return true;
 	}
-	bool success;
-#if defined(__linux__)
-	success = change_route(RTM_NEWROUTE, destination, gateway, error);
-#elif defined(__APPLE__) || defined(__FreeBSD__)
-	success = change_route(RTM_ADD, destination, gateway, error);
-#else
-	success = change_route(0, destination, gateway, error);
-#endif
-	// 只有在成功添加系统路由后才更新内存索引，否则可能导致内存索引与系统路由不一致。
-	if (success) {
-		installed_routes[key][destination]
-			= route_metadata(gateway, ttl > 0 ? ttl : 0, expires_at);
-		routes_changed.notify_all();
+	// 新路由先持久化，再写入系统路由表；系统操作失败时恢复旧数据库，
+	// 保证重启后不会加载一次未成功完成的添加操作。
+	installed_routes[key][destination]
+		= route_metadata(gateway, ttl > 0 ? ttl : 0, expires_at);
+	acl::string persist_error;
+	if (!save_routes_locked(persist_error)) {
+		installed_routes = previous_routes;
+		error = persist_error;
+		return false;
 	}
-	return success;
+	acl::string system_error;
+	if (!add_system_route(destination, gateway, system_error)) {
+		installed_routes = previous_routes;
+		acl::string rollback_error;
+		if (!save_routes_locked(rollback_error)) {
+			logger_error("rollback route database failed after system add error, "
+				"error=%s", rollback_error.c_str());
+		}
+		error = system_error;
+		return false;
+	}
+	routes_changed.notify_all();
+	return true;
 }
 
 bool route_manager::remove(const char* key, const char* destination,
@@ -735,6 +989,7 @@ bool route_manager::remove(const char* key, const char* destination,
 			key, destination, gateway);
 		return false;
 	}
+	const std::map<acl::string, key_routes> previous_routes = installed_routes;
 
 	// 从内存路由列表删除时，必须同时删除对应的系统路由。由于一条系统
 	// 主机路由可能被多个 KEY 引用，系统路由删除成功后需要清理所有 KEY
@@ -754,6 +1009,18 @@ bool route_manager::remove(const char* key, const char* destination,
 		} else {
 			++it;
 		}
+	}
+	acl::string persist_error;
+	if (!save_routes_locked(persist_error)) {
+		installed_routes = previous_routes;
+		acl::string rollback_error;
+		if (!add_system_route(destination, gateway, rollback_error)) {
+			logger_error("restore system route failed after persistence error, "
+				"ip=%s, gateway=%s, error=%s", destination, gateway,
+				rollback_error.c_str());
+		}
+		error = persist_error;
+		return false;
 	}
 	routes_changed.notify_all();
 	return true;
@@ -807,6 +1074,7 @@ bool route_manager::remove_system(const char* destination,
 			destination, gateway);
 		return false;
 	}
+	const std::map<acl::string, key_routes> previous_routes = installed_routes;
 
 	if (!delete_system_route(destination, gateway, error)) {
 		return false;
@@ -825,6 +1093,18 @@ bool route_manager::remove_system(const char* destination,
 		} else {
 			++group;
 		}
+	}
+	acl::string persist_error;
+	if (!save_routes_locked(persist_error)) {
+		installed_routes = previous_routes;
+		acl::string rollback_error;
+		if (!add_system_route(destination, gateway, rollback_error)) {
+			logger_error("restore system route failed after persistence error, "
+				"ip=%s, gateway=%s, error=%s", destination, gateway,
+				rollback_error.c_str());
+		}
+		error = persist_error;
+		return false;
 	}
 	routes_changed.notify_all();
 	return true;

@@ -67,12 +67,8 @@ acl::sslbase_io* master_service::setup_ssl(acl::socket_stream& conn,
 		return hook;
 	}
 
-	// 对于使用 SSL 方式的流对象，需要将 SSL IO 流对象注册至网络
-	// 连接流对象中，即用 ssl io 替换 stream 中默认的底层 IO 过程
-
 	//logger("begin setup ssl hook...");
 
-	// 采用阻塞 SSL 握手方式
 	acl::sslbase_io* ssl = conf.create(false);
 	if (conn.setup_hook(ssl) == ssl) {
 		logger_error("setup_hook error!");
@@ -135,8 +131,6 @@ void master_service::proc_on_init(void)
 {
 	logger(">>>proc_on_init<<<");
 
-	// 下面用来初始化 SSL 功能
-
 	if (var_cfg_crt_file == NULL || *var_cfg_crt_file == 0
 		|| var_cfg_key_file == NULL || *var_cfg_key_file == 0) {
 		logger("not use SSL mode");
@@ -183,10 +177,8 @@ void master_service::proc_on_init(void)
 		return;
 	}
 
-	// 允许服务端的 SSL 会话缓存功能
 	conf_->enable_cache(var_cfg_ssl_session_cache);
 
-	// 添加本地服务的证书及服务密钥
 	if (!conf_->add_cert(var_cfg_crt_file, var_cfg_key_file,
 			var_cfg_key_pass)) {
 
