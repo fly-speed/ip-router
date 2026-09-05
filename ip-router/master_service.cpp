@@ -2,6 +2,7 @@
 #include "http_service.h"
 #include "http_servlet.h"
 #include "master_service.h"
+#include "route_manager.h"
 
 char *var_cfg_libcrypto_path;	// For OpenSSL, MbedTLS
 char *var_cfg_libx509_path;	// For MbedTLS
@@ -9,6 +10,7 @@ char *var_cfg_libssl_path;	// For OpenSSL, MbedTLS, and PolarSSL
 char *var_cfg_crt_file;		// For OpenSSL, MbedTLS, and PolarSSL
 char *var_cfg_key_file;		// For OpenSSL, MbedTLS, and PolarSSL
 char *var_cfg_key_pass;		// For OpenSSL, MbedTLS, and PolarSSL
+char *var_cfg_routes_file;	// Route persistence file
 
 acl::master_str_tbl var_conf_str_tab[] = {
 	{ "libcrypto_path",	"",	&var_cfg_libcrypto_path	},
@@ -17,6 +19,7 @@ acl::master_str_tbl var_conf_str_tab[] = {
 	{ "crt_file",		"",	&var_cfg_crt_file	},
 	{ "key_file",		"",	&var_cfg_key_file	},
 	{ "key_pass",		"",	&var_cfg_key_pass	},
+	{ "routes_file",	"routes.db", &var_cfg_routes_file	},
 
 	{ 0, 0, 0 }
 };
@@ -130,6 +133,8 @@ void master_service::proc_on_listen(acl::server_socket& ss)
 void master_service::proc_on_init(void)
 {
 	logger(">>>proc_on_init<<<");
+	route_manager::set_storage_path(var_cfg_routes_file);
+	route_manager::start();
 
 	if (var_cfg_crt_file == NULL || *var_cfg_crt_file == 0
 		|| var_cfg_key_file == NULL || *var_cfg_key_file == 0) {
@@ -197,6 +202,7 @@ void master_service::proc_on_exit(void)
 {
 	logger(">>>proc_on_exit<<<");
 
+	route_manager::stop();
 	delete conf_;
 	delete service_;
 }

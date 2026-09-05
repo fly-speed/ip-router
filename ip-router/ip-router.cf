@@ -91,6 +91,9 @@ service ip-router
 	fiber_threads = 1
 #	进程运行时所在的路径
 	fiber_queue_dir = {install_path}/var
+#	路由持久化文件路径；留空时默认为当前运行目录下的 routes.db
+#	可填写绝对路径，或相对于程序当前运行目录的路径
+	routes_file = routes.db
 #	读写超时时间, 单位为秒
 	fiber_rw_timeout = 120
 #	读缓冲区的缓冲区大小

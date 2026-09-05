@@ -34,6 +34,7 @@ public:
 
 class route_manager {
 public:
+	static void set_storage_path(const char* path);
 	static void start(void);
 	static void stop(void);
 	static bool valid_ipv4(const char* value);

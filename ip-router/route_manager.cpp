@@ -56,7 +56,7 @@ std::condition_variable routes_changed;
 std::thread expiration_worker;
 bool worker_started = false;
 bool worker_stopping = false;
-const char* const routes_file = "routes.db";
+std::string routes_file("routes.db");
 
 class route_metadata {
 public:
@@ -110,9 +110,9 @@ bool save_routes_locked(acl::string& error)
 #if defined(_WIN32) || defined(_WIN64)
 	// Windows 的 rename 不能覆盖现有文件；该平台当前不支持系统路由操作，
 	// 这里仍保留可编译的持久化实现。
-	::remove(routes_file);
+	::remove(routes_file.c_str());
 #endif
-	if (::rename(temporary.c_str(), routes_file) != 0) {
+	if (::rename(temporary.c_str(), routes_file.c_str()) != 0) {
 		set_error(error, "replace route database", errno);
 		return false;
 	}
@@ -839,6 +839,16 @@ void expire_routes(void)
 
 } // namespace
 
+void route_manager::set_storage_path(const char* path)
+{
+	std::lock_guard<std::mutex> guard(routes_mutex);
+	if (worker_started) {
+		logger_error("cannot change route persistence file after startup");
+		return;
+	}
+	routes_file = path != NULL && *path != 0 ? path : "routes.db";
+}
+
 void route_manager::start(void)
 {
 	std::lock_guard<std::mutex> guard(routes_mutex);
@@ -848,10 +858,11 @@ void route_manager::start(void)
 	worker_started = true;
 	worker_stopping = false;
 	installed_routes.clear();
+	logger("route persistence file=%s", routes_file.c_str());
 	acl::string error;
 	if (!load_routes_locked(error)) {
 		logger_error("load persisted routes failed, file=%s, error=%s",
-			routes_file, error.c_str());
+			routes_file.c_str(), error.c_str());
 	}
 	expiration_worker = std::thread(expire_routes);
 	std::atexit(route_manager::stop);

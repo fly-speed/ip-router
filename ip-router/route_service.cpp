@@ -445,7 +445,6 @@ bool system_route_delete(HttpRequest& request, HttpResponse& response)
 
 void register_route_service(http_service& service)
 {
-	route_manager::start();
 	service.Get("/", route_page)
 		.Get("/health", health)
 		.Get("/routes", route_list)
