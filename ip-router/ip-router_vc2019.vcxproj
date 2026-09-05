@@ -334,6 +334,8 @@
     <ClCompile Include="http_servlet.cpp" />
     <ClCompile Include="main.cpp" />
     <ClCompile Include="master_service.cpp" />
+    <ClCompile Include="route_manager.cpp" />
+    <ClCompile Include="route_service.cpp" />
     <ClCompile Include="websocket.cpp" />
     <ClCompile Include="stdafx.cpp">
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='DebugDll|Win32'">Create</PrecompiledHeader>
@@ -350,6 +352,8 @@
     <ClInclude Include="http_service.h" />
     <ClInclude Include="http_servlet.h" />
     <ClInclude Include="master_service.h" />
+    <ClInclude Include="route_manager.h" />
+    <ClInclude Include="route_service.h" />
     <ClInclude Include="websocket.h" />
     <ClInclude Include="stdafx.h" />
   </ItemGroup>

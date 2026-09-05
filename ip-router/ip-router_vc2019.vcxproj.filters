@@ -27,6 +27,12 @@
     <ClCompile Include="master_service.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
+    <ClCompile Include="route_manager.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="route_service.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
     <ClCompile Include="stdafx.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
@@ -42,6 +48,12 @@
       <Filter>头文件</Filter>
     </ClInclude>
     <ClInclude Include="master_service.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="route_manager.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="route_service.h">
       <Filter>头文件</Filter>
     </ClInclude>
     <ClInclude Include="stdafx.h">
