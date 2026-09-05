@@ -18,6 +18,7 @@ ip router，快捷访问网络。
 `ip-router` 提供以下 HTTP 接口（服务默认只监听本机地址）：
 
 - `GET /health`：健康检查。
+- `GET /`：显示路由管理 HTML 页面，可添加、批量删除及逐条删除路由。
 - `GET /routes`：以字符串 `key` 分组，列出本服务成功设置且尚未删除的全部 IP 路由。
 - `POST /route?ip=<目标IPv4>&gateway=<网关IPv4>&key=<字符串KEY>&ttl=<秒>`：向指定 KEY 添加或替换一个目标 IP 的主机路由。
 - `POST /route?ips=<IPv4列表>&gateway=<网关IPv4>&key=<字符串KEY>&ttl=<秒>`：为同一 KEY 批量添加多个 IP，IP 之间用逗号、分号或空白分隔。
@@ -29,6 +30,8 @@ ip router，快捷访问网络。
 旧的 `domain` 参数暂时可作为 `key` 的兼容别名。
 `ttl` 为可选的整数秒数；缺省或小于等于 `0` 时永不过期，大于 `0` 时到期自动删除系统路由。
 修改系统路由表通常需要以 root 或具备相应网络管理权限的用户运行服务。
+
+根页面模板位于 `ip-router/html/index.html`。服务会在每次请求时读取模板，页面通过 `/routes` 接口加载数据，修改 HTML 后刷新即可生效。
 
 `GET /routes` 按字符串 KEY 分组返回：
 

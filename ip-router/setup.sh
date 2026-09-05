@@ -149,6 +149,7 @@ create_all_path() {
 	create_path $SH_PATH
 	create_path $CONF_PATH
 	create_path $VAR_PATH
+	create_path $VAR_PATH/html
 	create_path $VAR_PATH/log
 	create_path $VAR_PATH/pid
 	chmod 1777 $VAR_PATH/log
@@ -157,6 +158,7 @@ create_all_path() {
 copy_all_file() {
 	copy_file a+x,go+rx $SERVICE_NAME $SERVICE_BIN
 	install_file a+x,go-wrx $SERVICE_NAME.cf $SERVICE_CONF
+	copy_file a+r,go+r html/index.html $VAR_PATH/html/index.html
 }
 
 MASTER_PATH=/opt/soft/acl-master

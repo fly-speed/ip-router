@@ -168,6 +168,7 @@ OBJ = $(patsubst %.cpp, $(OBJ_PATH)/%.o, $(notdir $(SRC)))
 
 $(shell mkdir -p ../../../dist/master/libexec/$(RPATH)/)
 $(shell mkdir -p ../../../dist/master/conf/service/)
+$(shell mkdir -p ../../../dist/master/var/html/)
 
 $(OBJ_PATH)/%.o: %.cpp
 	$(COMPILE) $< -o $@
@@ -186,4 +187,5 @@ clean:
 install:
 	cp $(PROG) ../../../dist/master/sbin/$(RPATH)/
 	cp $(PROG).cf ../../../dist/master/conf/service/
+	cp html/index.html ../../../dist/master/var/html/
 ###########################################################

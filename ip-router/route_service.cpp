@@ -4,8 +4,11 @@
 #include "route_service.h"
 
 #include <errno.h>
+#include <fstream>
+#include <iterator>
 #include <set>
 #include <stdlib.h>
+#include <string>
 
 namespace {
 
@@ -114,15 +117,15 @@ bool change_route(HttpRequest& request, HttpResponse& response, bool add)
 		? route_manager::add(destination, gateway, key, ttl, error)
 		: route_manager::remove(key, destination, gateway, error);
 	if (!success) {
-		logger_error("route %s failed, ip=%s, gateway=%s, error=%s",
-			add ? "add" : "delete", destination, gateway, error.c_str());
+		logger_error("route %s failed, key=%s, ip=%s, gateway=%s, "
+			"ttl=%lld, error=%s", add ? "add" : "delete", key,
+			destination, gateway, ttl, error.c_str());
 		return reply_json(response, 500, false, error.c_str(), destination,
 			gateway, key);
 	}
 
-	logger("route %s succeeded, ip=%s, gateway=%s, key=%s",
-		add ? "add" : "delete", destination, gateway,
-		key ? key : "");
+	logger("route %s succeeded, key=%s, ip=%s, gateway=%s, ttl=%lld",
+		add ? "add" : "delete", key, destination, gateway, ttl);
 	return reply_json(response, 200, true,
 		add ? "route added" : "route deleted", destination, gateway,
 		key, add ? ttl : -1);
@@ -191,15 +194,20 @@ bool route_add(HttpRequest& request, HttpResponse& response)
 		results.add_child(item);
 		if (success) {
 			++succeeded;
-			logger("route add succeeded, ip=%s, gateway=%s, key=%s",
-				it->c_str(), gateway, key ? key : "");
+			logger("route add succeeded, key=%s, ip=%s, gateway=%s, "
+				"ttl=%lld", key, it->c_str(), gateway, ttl);
 		} else {
-			logger_error("route add failed, ip=%s, gateway=%s, error=%s",
-				it->c_str(), gateway, error.c_str());
+			logger_error("route add failed, key=%s, ip=%s, gateway=%s, "
+				"ttl=%lld, error=%s", key, it->c_str(), gateway, ttl,
+				error.c_str());
 		}
 	}
 
 	bool all_succeeded = succeeded == destinations.size();
+	logger("route add completed, key=%s, gateway=%s, ttl=%lld, "
+		"requested=%lu, succeeded=%lu", key, gateway, ttl,
+		static_cast<unsigned long>(destinations.size()),
+		static_cast<unsigned long>(succeeded));
 	int status = all_succeeded ? 200 : (succeeded == 0 ? 500 : 207);
 	response.setStatus(status);
 	response.setContentType("application/json; charset=utf-8");
@@ -257,6 +265,14 @@ bool route_delete(HttpRequest& request, HttpResponse& response)
 				target->ip.c_str(), target->gateway.c_str(), error);
 			if (success) {
 				++succeeded;
+				logger("route delete succeeded, key=%s, ip=%s, gateway=%s",
+					group->key.c_str(), target->ip.c_str(),
+					target->gateway.c_str());
+			} else {
+				logger_error("route delete failed, key=%s, ip=%s, "
+					"gateway=%s, error=%s", group->key.c_str(),
+					target->ip.c_str(), target->gateway.c_str(),
+					error.c_str());
 			}
 			results.add_child(json.create_node()
 				.add_text("key", group->key.c_str())
@@ -270,6 +286,8 @@ bool route_delete(HttpRequest& request, HttpResponse& response)
 
 	response.setContentType("application/json; charset=utf-8");
 	if (matched == 0) {
+		logger("route delete found no match, key=%s, ip=%s",
+			has_key ? key : "*", has_destination ? destination : "*");
 		response.setStatus(404);
 		root.add_bool("success", false)
 			.add_text("message", "no matching routes found")
@@ -280,6 +298,11 @@ bool route_delete(HttpRequest& request, HttpResponse& response)
 	}
 
 	bool all_succeeded = matched == succeeded;
+	logger("route delete completed, key=%s, ip=%s, matched=%lu, "
+		"succeeded=%lu", has_key ? key : "*",
+		has_destination ? destination : "*",
+		static_cast<unsigned long>(matched),
+		static_cast<unsigned long>(succeeded));
 	response.setStatus(all_succeeded ? 200 : (succeeded == 0 ? 500 : 207));
 	root.add_bool("success", all_succeeded)
 		.add_text("message", all_succeeded
@@ -293,6 +316,34 @@ bool route_delete(HttpRequest& request, HttpResponse& response)
 bool health(HttpRequest&, HttpResponse& response)
 {
 	return reply_json(response, 200, true, "ok");
+}
+
+bool load_html_template(std::string& content)
+{
+	std::ifstream input("html/index.html", std::ios::in | std::ios::binary);
+	if (!input.is_open()) {
+		return false;
+	}
+	std::istreambuf_iterator<char> begin(input);
+	std::istreambuf_iterator<char> end;
+	content.assign(begin, end);
+	return input.good() || input.eof();
+}
+
+bool route_page(HttpRequest&, HttpResponse& response)
+{
+	std::string page;
+	if (!load_html_template(page)) {
+		logger_error("load HTML template html/index.html failed");
+		return reply_json(response, 500, false,
+			"failed to load html/index.html");
+	}
+	acl::string html(page.c_str());
+
+	response.setStatus(200);
+	response.setContentType("text/html; charset=utf-8");
+	response.setContentLength(html.size());
+	return response.write(html);
 }
 
 bool route_list(HttpRequest&, HttpResponse& response)
@@ -332,7 +383,8 @@ bool route_list(HttpRequest&, HttpResponse& response)
 void register_route_service(http_service& service)
 {
 	route_manager::start();
-	service.Get("/health", health)
+	service.Get("/", route_page)
+		.Get("/health", health)
 		.Get("/routes", route_list)
 		.Post("/route", route_add)
 		.Delete("/route", route_delete);

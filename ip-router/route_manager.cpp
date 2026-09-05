@@ -24,7 +24,6 @@
 # include <net/route.h>
 # include <netinet/in.h>
 # include <sys/socket.h>
-# include <sys/time.h>
 # include <unistd.h>
 #endif
 
@@ -191,16 +190,13 @@ bool change_route(int command, const char* destination, const char* gateway,
 		return false;
 	}
 
-	int fd = socket(PF_ROUTE, SOCK_RAW, AF_INET);
+	// PF_ROUTE 的第三个参数是路由协议号，macOS/FreeBSD 均应使用 0。
+	// AF_INET 只用于消息内的目标地址类型，不能作为这里的协议号。
+	int fd = socket(PF_ROUTE, SOCK_RAW, 0);
 	if (fd == -1) {
 		set_error(error, "open PF_ROUTE socket", errno);
 		return false;
 	}
-
-	struct timeval timeout;
-	timeout.tv_sec = 5;
-	timeout.tv_usec = 0;
-	setsockopt(fd, SOL_SOCKET, SO_RCVTIMEO, &timeout, sizeof(timeout));
 
 	struct route_message {
 		struct rt_msghdr header;
@@ -224,38 +220,32 @@ bool change_route(int command, const char* destination, const char* gateway,
 	message.gateway.sin_family = AF_INET;
 	message.gateway.sin_addr = gateway_addr;
 
-	if (write(fd, &message, sizeof(message)) == -1) {
+	ssize_t written = write(fd, &message, sizeof(message));
+	if (written == -1) {
 		int code = errno;
 		close(fd);
+		// 与 Linux 的 NLM_F_REPLACE 保持一致：目标主机路由已存在时，
+		// 改用 RTM_CHANGE 更新网关。这也可以接管旧版本已经写入系统、
+		// 却因错误等待回包而未保存到内存索引中的路由。
+		if (command == RTM_ADD && code == EEXIST) {
+			return change_route(RTM_CHANGE, destination, gateway, error);
+		}
 		set_error(error, "write PF_ROUTE request", code);
 		return false;
 	}
-
-	for (;;) {
-		char response[2048];
-		ssize_t length = read(fd, response, sizeof(response));
-		if (length == -1) {
-			int code = errno;
-			close(fd);
-			set_error(error, "read PF_ROUTE response", code);
-			return false;
-		}
-		if (static_cast<size_t>(length) < sizeof(struct rt_msghdr)) {
-			continue;
-		}
-
-		const struct rt_msghdr* header =
-			reinterpret_cast<const struct rt_msghdr*>(response);
-		if (header->rtm_pid != getpid() || header->rtm_seq != sequence) {
-			continue;
-		}
+	if (static_cast<size_t>(written) != sizeof(message)) {
+		error.format("write PF_ROUTE request failed: wrote %ld of %lu bytes",
+			static_cast<long>(written),
+			static_cast<unsigned long>(sizeof(message)));
 		close(fd);
-		if (header->rtm_errno == 0) {
-			return true;
-		}
-		set_error(error, "change route", header->rtm_errno);
 		return false;
 	}
+
+	// RTM_ADD 和 RTM_DELETE 的执行错误由 write() 同步返回。内核不会像
+	// RTM_GET 那样保证再发送一个需要读取的应答；继续 read() 会在 ACL
+	// fiber 的非阻塞套接字上等待至超时，最终错误地返回 EAGAIN。
+	close(fd);
+	return true;
 }
 
 #else

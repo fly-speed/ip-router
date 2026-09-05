@@ -1,0 +1,335 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>IP Router</title>
+  <style>
+    body {
+      margin: 0;
+      background: #f4f7fb;
+      color: #182230;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+    main { max-width: 1100px; margin: 48px auto; padding: 0 20px; }
+    header {
+      display: flex;
+      align-items: end;
+      justify-content: space-between;
+      gap: 16px;
+      margin-bottom: 20px;
+    }
+    h1 { margin: 0; font-size: 28px; }
+    p { margin: 7px 0 0; color: #667085; }
+    .actions a { margin-left: 16px; color: #175cd3; text-decoration: none; }
+    .controls {
+      display: grid;
+      grid-template-columns: 2fr 1fr;
+      gap: 16px;
+      margin-bottom: 20px;
+    }
+    .card {
+      overflow: hidden;
+      background: #fff;
+      border: 1px solid #e4e7ec;
+      border-radius: 12px;
+      box-shadow: 0 4px 16px rgba(16, 24, 40, .05);
+    }
+    .panel { padding: 20px; }
+    .panel h2 { margin: 0 0 16px; font-size: 17px; }
+    .form-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 13px;
+    }
+    label { display: grid; gap: 6px; color: #475467; font-size: 13px; }
+    input {
+      min-width: 0;
+      padding: 9px 11px;
+      color: #182230;
+      background: #fff;
+      border: 1px solid #d0d5dd;
+      border-radius: 7px;
+      outline: none;
+    }
+    input:focus { border-color: #84adff; box-shadow: 0 0 0 3px #d1e0ff; }
+    .form-actions { display: flex; align-items: end; }
+    button {
+      padding: 9px 15px;
+      color: #fff;
+      font-weight: 600;
+      cursor: pointer;
+      background: #175cd3;
+      border: 0;
+      border-radius: 7px;
+    }
+    button:hover { background: #1849a9; }
+    button:disabled { cursor: wait; opacity: .6; }
+    button.danger { background: #d92d20; }
+    button.danger:hover { background: #b42318; }
+    button.small { padding: 6px 10px; font-size: 12px; }
+    .hint { grid-column: 1 / -1; margin: -4px 0 0; font-size: 12px; }
+    .notice {
+      display: none;
+      margin-bottom: 20px;
+      padding: 11px 14px;
+      border: 1px solid;
+      border-radius: 8px;
+      font-size: 14px;
+    }
+    .notice.success { display: block; color: #027a48; background: #ecfdf3; border-color: #abefc6; }
+    .notice.warning { display: block; color: #b54708; background: #fffaeb; border-color: #fedf89; }
+    .notice.error { display: block; color: #b42318; background: #fef3f2; border-color: #fecdca; }
+    .table-card { overflow-x: auto; }
+    table { width: 100%; border-collapse: collapse; }
+    th, td {
+      padding: 13px 16px;
+      text-align: left;
+      border-bottom: 1px solid #eaecf0;
+    }
+    th { background: #f9fafb; color: #475467; font-size: 13px; }
+    td { font-size: 14px; }
+    tr:last-child td { border-bottom: 0; }
+    code { color: #175cd3; }
+    .empty { padding: 48px; color: #667085; text-align: center; }
+    .permanent { color: #027a48; }
+    .expiring { color: #b54708; }
+    @media (max-width: 800px) {
+      main { margin-top: 24px; }
+      header { align-items: start; }
+      .controls { grid-template-columns: 1fr; }
+      .form-grid { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+  <main>
+    <header>
+      <div>
+        <h1>IP 路由列表</h1>
+        <p id="summary">正在加载路由列表…</p>
+      </div>
+      <div class="actions">
+        <a id="refresh" href="/">刷新</a>
+        <a href="/routes">查看 JSON</a>
+      </div>
+    </header>
+    <div class="controls">
+      <section class="card panel">
+        <h2>添加路由</h2>
+        <form id="add-form" class="form-grid">
+          <label>
+            KEY
+            <input name="key" maxlength="256" required placeholder="例如 dns.google">
+          </label>
+          <label>
+            目标 IP
+            <input name="ips" required placeholder="多个 IP 用逗号或空格分隔">
+          </label>
+          <label>
+            网关 IP
+            <input name="gateway" required placeholder="例如 192.168.1.1">
+          </label>
+          <label>
+            TTL（秒）
+            <input name="ttl" type="number" min="0" step="1" value="0">
+          </label>
+          <p class="hint">TTL 为 0 表示永久；同一 KEY 可以一次添加多个目标 IP。</p>
+          <div class="form-actions"><button type="submit">添加路由</button></div>
+        </form>
+      </section>
+      <section class="card panel">
+        <h2>批量删除</h2>
+        <form id="delete-form" class="form-grid">
+          <label>
+            KEY（可选）
+            <input name="key" maxlength="256" placeholder="删除整个 KEY 或配合 IP">
+          </label>
+          <label>
+            目标 IP（可选）
+            <input name="ip" placeholder="删除所有匹配 IP">
+          </label>
+          <p class="hint">至少填写一项；同时填写时只删除该 KEY 下的指定 IP。</p>
+          <div class="form-actions"><button class="danger" type="submit">删除路由</button></div>
+        </form>
+      </section>
+    </div>
+    <div id="notice" class="notice" role="status" aria-live="polite"></div>
+    <div class="card table-card">
+      <table>
+        <thead>
+          <tr>
+            <th>KEY</th>
+            <th>目标 IP</th>
+            <th>网关</th>
+            <th>TTL</th>
+            <th>过期时间</th>
+            <th>操作</th>
+          </tr>
+        </thead>
+        <tbody id="route-rows">
+          <tr><td class="empty" colspan="6">正在加载…</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </main>
+  <script>
+    const summary = document.getElementById("summary");
+    const rows = document.getElementById("route-rows");
+    const notice = document.getElementById("notice");
+
+    function addCell(row, value, className, code) {
+      const cell = document.createElement("td");
+      const node = code ? document.createElement("code") : cell;
+      node.textContent = value;
+      if (code) cell.appendChild(node);
+      if (className) cell.className = className;
+      row.appendChild(cell);
+    }
+
+    function showMessage(message) {
+      rows.replaceChildren();
+      const row = document.createElement("tr");
+      addCell(row, message, "empty");
+      row.firstChild.colSpan = 6;
+      rows.appendChild(row);
+    }
+
+    function showNotice(message, type) {
+      notice.textContent = message;
+      notice.className = `notice ${type}`;
+    }
+
+    async function routeRequest(method, parameters) {
+      const query = new URLSearchParams();
+      Object.entries(parameters).forEach(([name, value]) => {
+        if (value !== "" && value !== null && value !== undefined) {
+          query.set(name, value);
+        }
+      });
+      const response = await fetch(`/route?${query}`, { method });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        throw new Error(data.message || `HTTP ${response.status}`);
+      }
+      return data;
+    }
+
+    function addDeleteButton(row, key, ip) {
+      const cell = document.createElement("td");
+      const button = document.createElement("button");
+      button.type = "button";
+      button.className = "danger small";
+      button.textContent = "删除";
+      button.addEventListener("click", async () => {
+        if (!window.confirm(`确定删除 ${key} 下的 ${ip} 路由吗？`)) return;
+        button.disabled = true;
+        try {
+          const data = await routeRequest("DELETE", { key, ip });
+          showNotice(data.message || "路由已删除", data.success ? "success" : "warning");
+          await loadRoutes();
+        } catch (error) {
+          showNotice(`删除失败：${error.message}`, "error");
+        } finally {
+          button.disabled = false;
+        }
+      });
+      cell.appendChild(button);
+      row.appendChild(cell);
+    }
+
+    function renderRoutes(groups) {
+      const routeCount = groups.reduce(
+        (count, group) => count + (Array.isArray(group.ips) ? group.ips.length : 0),
+        0
+      );
+      summary.textContent = `共 ${groups.length} 个 KEY，${routeCount} 条路由`;
+      rows.replaceChildren();
+      if (routeCount === 0) {
+        showMessage("尚未设置路由");
+        return;
+      }
+
+      const now = Math.floor(Date.now() / 1000);
+      groups.forEach((group) => {
+        (group.ips || []).forEach((target) => {
+          const row = document.createElement("tr");
+          addCell(row, group.key || "", "", true);
+          addCell(row, target.ip || "");
+          addCell(row, target.gateway || "");
+          if (target.expires_at > 0) {
+            const remaining = Math.max(0, target.expires_at - now);
+            addCell(row, `${target.ttl} 秒（剩余 ${remaining} 秒）`, "expiring");
+            addCell(row, String(target.expires_at));
+          } else {
+            addCell(row, "永久", "permanent");
+            addCell(row, "—");
+          }
+          addDeleteButton(row, group.key || "", target.ip || "");
+          rows.appendChild(row);
+        });
+      });
+    }
+
+    async function loadRoutes() {
+      try {
+        const response = await fetch("/routes", { cache: "no-store" });
+        if (!response.ok) throw new Error(`HTTP ${response.status}`);
+        const data = await response.json();
+        renderRoutes(Array.isArray(data.routes) ? data.routes : []);
+      } catch (error) {
+        summary.textContent = "路由列表加载失败";
+        showMessage(`加载失败：${error.message}`);
+      }
+    }
+
+    document.getElementById("refresh").addEventListener("click", (event) => {
+      event.preventDefault();
+      loadRoutes();
+    });
+
+    document.getElementById("add-form").addEventListener("submit", async (event) => {
+      event.preventDefault();
+      const form = event.currentTarget;
+      const button = form.querySelector("button[type=submit]");
+      const values = Object.fromEntries(new FormData(form));
+      button.disabled = true;
+      try {
+        const data = await routeRequest("POST", values);
+        const count = data.count === undefined ? 1 : data.count;
+        const succeeded = data.succeeded === undefined ? 1 : data.succeeded;
+        showNotice(`添加完成：成功 ${succeeded}/${count} 条`, data.success ? "success" : "warning");
+        await loadRoutes();
+      } catch (error) {
+        showNotice(`添加失败：${error.message}`, "error");
+      } finally {
+        button.disabled = false;
+      }
+    });
+
+    document.getElementById("delete-form").addEventListener("submit", async (event) => {
+      event.preventDefault();
+      const form = event.currentTarget;
+      const button = form.querySelector("button[type=submit]");
+      const values = Object.fromEntries(new FormData(form));
+      if (!values.key && !values.ip) {
+        showNotice("删除时至少需要填写 KEY 或目标 IP", "error");
+        return;
+      }
+      if (!window.confirm("确定删除所有匹配的路由吗？")) return;
+      button.disabled = true;
+      try {
+        const data = await routeRequest("DELETE", values);
+        showNotice(`删除完成：成功 ${data.succeeded}/${data.count} 条`,
+          data.success ? "success" : "warning");
+        await loadRoutes();
+      } catch (error) {
+        showNotice(`删除失败：${error.message}`, "error");
+      } finally {
+        button.disabled = false;
+      }
+    });
+    loadRoutes();
+  </script>
+</body>
+</html>
