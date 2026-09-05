@@ -43,7 +43,7 @@
       gap: 13px;
     }
     label { display: grid; gap: 6px; color: #475467; font-size: 13px; }
-    input {
+    input, select {
       min-width: 0;
       padding: 9px 11px;
       color: #182230;
@@ -52,7 +52,7 @@
       border-radius: 7px;
       outline: none;
     }
-    input:focus { border-color: #84adff; box-shadow: 0 0 0 3px #d1e0ff; }
+    input:focus, select:focus { border-color: #84adff; box-shadow: 0 0 0 3px #d1e0ff; }
     .form-actions { display: flex; align-items: end; }
     button {
       padding: 9px 15px;
@@ -90,7 +90,8 @@
     }
     .list-heading h2 { margin: 0; font-size: 18px; }
     .list-heading p { margin: 0; font-size: 13px; }
-    .table-card { overflow-x: auto; }
+    .table-card { overflow: hidden; }
+    .table-scroll { overflow-x: auto; }
     table { width: 100%; border-collapse: collapse; }
     th, td {
       padding: 13px 16px;
@@ -98,17 +99,54 @@
       border-bottom: 1px solid #eaecf0;
     }
     th { background: #f9fafb; color: #475467; font-size: 13px; }
+    .sort-button {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      padding: 0;
+      color: inherit;
+      font: inherit;
+      background: transparent;
+      border: 0;
+      border-radius: 3px;
+    }
+    .sort-button:hover { color: #175cd3; background: transparent; }
+    .sort-button:focus-visible { outline: 2px solid #84adff; outline-offset: 3px; }
+    .sort-indicator { min-width: 12px; color: #667085; }
     td { font-size: 14px; }
     tr:last-child td { border-bottom: 0; }
     code { color: #175cd3; }
     .empty { padding: 48px; color: #667085; text-align: center; }
     .permanent { color: #027a48; }
     .expiring { color: #b54708; }
+    .pagination {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      padding: 12px 16px;
+      color: #475467;
+      background: #f9fafb;
+      border-top: 1px solid #eaecf0;
+      font-size: 13px;
+    }
+    .page-size, .page-buttons { display: flex; align-items: center; gap: 8px; }
+    .pagination select { padding: 6px 28px 6px 9px; }
+    .pagination button {
+      padding: 6px 11px;
+      color: #344054;
+      background: #fff;
+      border: 1px solid #d0d5dd;
+    }
+    .pagination button:hover:not(:disabled) { background: #f2f4f7; }
+    .pagination button:disabled { cursor: default; opacity: .45; }
     @media (max-width: 800px) {
       main { margin-top: 24px; }
       header { align-items: start; }
       .controls { grid-template-columns: 1fr; }
       .form-grid { grid-template-columns: 1fr; }
+      .pagination { align-items: stretch; flex-direction: column; }
+      .page-buttons { justify-content: space-between; }
     }
   </style>
 </head>
@@ -172,21 +210,46 @@
         <p>包含 KEY、TTL 等服务管理信息</p>
       </div>
       <div class="card table-card">
-        <table>
-          <thead>
-            <tr>
-              <th>KEY</th>
-              <th>目标 IP</th>
-              <th>网关</th>
-              <th>TTL</th>
-              <th>过期时间</th>
-              <th>操作</th>
-            </tr>
-          </thead>
-          <tbody id="route-rows">
-            <tr><td class="empty" colspan="6">正在加载…</td></tr>
-          </tbody>
-        </table>
+        <div class="table-scroll">
+          <table>
+            <thead>
+              <tr>
+                <th id="key-sort-header" aria-sort="ascending">
+                  <button id="key-sort" class="sort-button" type="button">
+                    KEY <span id="key-sort-indicator" class="sort-indicator">▲</span>
+                  </button>
+                </th>
+                <th>目标 IP</th>
+                <th>网关</th>
+                <th>TTL</th>
+                <th id="expiration-sort-header" aria-sort="none">
+                  <button id="expiration-sort" class="sort-button" type="button">
+                    过期时间 <span id="expiration-sort-indicator" class="sort-indicator">↕</span>
+                  </button>
+                </th>
+                <th>操作</th>
+              </tr>
+            </thead>
+            <tbody id="route-rows">
+              <tr><td class="empty" colspan="6">正在加载…</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <div class="pagination">
+          <label class="page-size">每页
+            <select id="route-page-size" aria-label="内存路由每页数量">
+              <option value="10">10</option>
+              <option value="20">20</option>
+              <option value="50" selected>50</option>
+              <option value="100">100</option>
+            </select>条
+          </label>
+          <div class="page-buttons">
+            <button id="route-prev" type="button">上一页</button>
+            <span id="route-page-info">第 1 / 1 页</span>
+            <button id="route-next" type="button">下一页</button>
+          </div>
+        </div>
       </div>
     </section>
     <section class="list-section">
@@ -195,19 +258,36 @@
         <p id="system-summary">正在直接读取系统路由表…</p>
       </div>
       <div class="card table-card">
-        <table>
-          <thead>
-            <tr>
-              <th>目标 IP</th>
-              <th>网关</th>
-              <th>网络接口</th>
-              <th>操作</th>
-            </tr>
-          </thead>
-          <tbody id="system-route-rows">
-            <tr><td class="empty" colspan="4">正在加载…</td></tr>
-          </tbody>
-        </table>
+        <div class="table-scroll">
+          <table>
+            <thead>
+              <tr>
+                <th>目标 IP</th>
+                <th>网关</th>
+                <th>网络接口</th>
+                <th>操作</th>
+              </tr>
+            </thead>
+            <tbody id="system-route-rows">
+              <tr><td class="empty" colspan="4">正在加载…</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <div class="pagination">
+          <label class="page-size">每页
+            <select id="system-page-size" aria-label="系统路由每页数量">
+              <option value="10">10</option>
+              <option value="20">20</option>
+              <option value="50" selected>50</option>
+              <option value="100">100</option>
+            </select>条
+          </label>
+          <div class="page-buttons">
+            <button id="system-prev" type="button">上一页</button>
+            <span id="system-page-info">第 1 / 1 页</span>
+            <button id="system-next" type="button">下一页</button>
+          </div>
+        </div>
       </div>
     </section>
   </main>
@@ -217,6 +297,26 @@
     const systemSummary = document.getElementById("system-summary");
     const systemRows = document.getElementById("system-route-rows");
     const notice = document.getElementById("notice");
+    const routePager = {
+      page: 1,
+      pageSize: 50,
+      items: [],
+      sortField: "key",
+      sortDirection: "asc",
+      pageSizeElement: document.getElementById("route-page-size"),
+      previous: document.getElementById("route-prev"),
+      next: document.getElementById("route-next"),
+      info: document.getElementById("route-page-info")
+    };
+    const systemPager = {
+      page: 1,
+      pageSize: 50,
+      items: [],
+      pageSizeElement: document.getElementById("system-page-size"),
+      previous: document.getElementById("system-prev"),
+      next: document.getElementById("system-next"),
+      info: document.getElementById("system-page-info")
+    };
 
     function addCell(row, value, className, code) {
       const cell = document.createElement("td");
@@ -309,37 +409,112 @@
       row.appendChild(cell);
     }
 
-    function renderRoutes(groups) {
-      const routeCount = groups.reduce(
-        (count, group) => count + (Array.isArray(group.ips) ? group.ips.length : 0),
-        0
-      );
-      summary.textContent = `共 ${groups.length} 个 KEY，${routeCount} 条路由`;
+    function updatePager(pager) {
+      const pageCount = Math.max(1, Math.ceil(pager.items.length / pager.pageSize));
+      pager.page = Math.min(Math.max(1, pager.page), pageCount);
+      pager.info.textContent = `第 ${pager.page} / ${pageCount} 页，共 ${pager.items.length} 条`;
+      pager.previous.disabled = pager.page <= 1;
+      pager.next.disabled = pager.page >= pageCount;
+    }
+
+    function currentPageItems(pager) {
+      updatePager(pager);
+      const start = (pager.page - 1) * pager.pageSize;
+      return pager.items.slice(start, start + pager.pageSize);
+    }
+
+    function compareText(left, right) {
+      return String(left).localeCompare(String(right), "zh-CN", {
+        numeric: true,
+        sensitivity: "base"
+      });
+    }
+
+    function compareRouteItems(left, right) {
+      let result = 0;
+      if (routePager.sortField === "expiration") {
+        const leftExpiration = Number(left.target.expires_at) > 0
+          ? Number(left.target.expires_at) : Number.POSITIVE_INFINITY;
+        const rightExpiration = Number(right.target.expires_at) > 0
+          ? Number(right.target.expires_at) : Number.POSITIVE_INFINITY;
+        if (leftExpiration < rightExpiration) result = -1;
+        if (leftExpiration > rightExpiration) result = 1;
+      } else {
+        result = compareText(left.key, right.key);
+      }
+      if (result === 0) result = compareText(left.key, right.key);
+      if (result === 0) result = compareText(left.target.ip || "", right.target.ip || "");
+      return routePager.sortDirection === "asc" ? result : -result;
+    }
+
+    function currentRoutePageItems() {
+      updatePager(routePager);
+      const start = (routePager.page - 1) * routePager.pageSize;
+      return routePager.items.slice().sort(compareRouteItems)
+        .slice(start, start + routePager.pageSize);
+    }
+
+    function updateRouteSortHeaders() {
+      ["key", "expiration"].forEach((field) => {
+        const active = routePager.sortField === field;
+        const direction = active ? routePager.sortDirection : "none";
+        document.getElementById(`${field}-sort-header`).setAttribute(
+          "aria-sort",
+          direction === "asc" ? "ascending" : direction === "desc" ? "descending" : "none"
+        );
+        document.getElementById(`${field}-sort-indicator`).textContent = !active
+          ? "↕" : routePager.sortDirection === "asc" ? "▲" : "▼";
+      });
+    }
+
+    function changeRouteSort(field) {
+      if (routePager.sortField === field) {
+        routePager.sortDirection = routePager.sortDirection === "asc" ? "desc" : "asc";
+      } else {
+        routePager.sortField = field;
+        routePager.sortDirection = "asc";
+      }
+      routePager.page = 1;
+      updateRouteSortHeaders();
+      renderRoutePage();
+    }
+
+    function renderRoutePage() {
       rows.replaceChildren();
-      if (routeCount === 0) {
+      if (routePager.items.length === 0) {
+        updatePager(routePager);
         showMessage("尚未设置路由");
         return;
       }
 
       const now = Math.floor(Date.now() / 1000);
+      currentRoutePageItems().forEach(({ key, target }) => {
+        const row = document.createElement("tr");
+        addCell(row, key, "", true);
+        addCell(row, target.ip || "");
+        addCell(row, target.gateway || "");
+        if (target.expires_at > 0) {
+          const remaining = Math.max(0, target.expires_at - now);
+          addCell(row, `${target.ttl} 秒（剩余 ${remaining} 秒）`, "expiring");
+          addCell(row, String(target.expires_at));
+        } else {
+          addCell(row, "永久", "permanent");
+          addCell(row, "—");
+        }
+        addDeleteButton(row, key, target.ip || "");
+        rows.appendChild(row);
+      });
+    }
+
+    function renderRoutes(groups) {
+      routePager.items = [];
       groups.forEach((group) => {
         (group.ips || []).forEach((target) => {
-          const row = document.createElement("tr");
-          addCell(row, group.key || "", "", true);
-          addCell(row, target.ip || "");
-          addCell(row, target.gateway || "");
-          if (target.expires_at > 0) {
-            const remaining = Math.max(0, target.expires_at - now);
-            addCell(row, `${target.ttl} 秒（剩余 ${remaining} 秒）`, "expiring");
-            addCell(row, String(target.expires_at));
-          } else {
-            addCell(row, "永久", "permanent");
-            addCell(row, "—");
-          }
-          addDeleteButton(row, group.key || "", target.ip || "");
-          rows.appendChild(row);
+          routePager.items.push({ key: group.key || "", target });
         });
       });
+      summary.textContent = `共 ${groups.length} 个 KEY，${routePager.items.length} 条路由`;
+      renderRoutePage();
     }
 
     async function loadRoutes() {
@@ -354,20 +529,42 @@
       }
     }
 
-    function renderSystemRoutes(routes) {
-      systemSummary.textContent = `从系统路由表读取到 ${routes.length} 条静态主机路由`;
+    function renderSystemRoutePage() {
       systemRows.replaceChildren();
-      if (routes.length === 0) {
+      if (systemPager.items.length === 0) {
+        updatePager(systemPager);
         showSystemMessage("系统中没有匹配的静态主机路由");
         return;
       }
-      routes.forEach((route) => {
+      currentPageItems(systemPager).forEach((route) => {
         const row = document.createElement("tr");
         addCell(row, route.ip || "");
         addCell(row, route.gateway || "");
         addCell(row, route.interface || "—");
         addSystemDeleteButton(row, route.ip || "", route.gateway || "");
         systemRows.appendChild(row);
+      });
+    }
+
+    function renderSystemRoutes(routes) {
+      systemPager.items = routes;
+      systemSummary.textContent = `从系统路由表读取到 ${routes.length} 条静态主机路由`;
+      renderSystemRoutePage();
+    }
+
+    function bindPagination(pager, render) {
+      pager.pageSizeElement.addEventListener("change", () => {
+        pager.pageSize = Number(pager.pageSizeElement.value);
+        pager.page = 1;
+        render();
+      });
+      pager.previous.addEventListener("click", () => {
+        pager.page -= 1;
+        render();
+      });
+      pager.next.addEventListener("click", () => {
+        pager.page += 1;
+        render();
       });
     }
 
@@ -433,6 +630,15 @@
         button.disabled = false;
       }
     });
+    bindPagination(routePager, renderRoutePage);
+    bindPagination(systemPager, renderSystemRoutePage);
+    document.getElementById("key-sort").addEventListener("click", () => {
+      changeRouteSort("key");
+    });
+    document.getElementById("expiration-sort").addEventListener("click", () => {
+      changeRouteSort("expiration");
+    });
+    updateRouteSortHeaders();
     loadAllRoutes();
   </script>
 </body>
