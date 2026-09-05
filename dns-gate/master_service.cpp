@@ -15,8 +15,8 @@ acl::master_str_tbl var_conf_str_tab[] = {
 	{ "upstream_addr", "114.114.114.114|53", &var_cfg_upstream_addr },
 	{ "geoip_database", "dbip-country-lite.mmdb", &var_cfg_geoip_database },
 	{ "geoip_countries", "CN", &var_cfg_geoip_countries },
-	{ "ip_router_addr", "127.0.0.1:8088", &var_cfg_ip_router_addr },
-	{ "ip_router_gateway", "", &var_cfg_ip_router_gateway },
+	{ "ip_router_addr", "127.0.0.1:8888", &var_cfg_ip_router_addr },
+	{ "ip_router_gateway", "192.168.1.1", &var_cfg_ip_router_gateway },
 
 	{ 0, 0, 0 }
 };
