@@ -9,6 +9,14 @@ if (${CMAKE_BINARY_DIR} STREQUAL ${CMAKE_CURRENT_SOURCE_DIR})
 	message(FATAL_ERROR "Please into another dir to build!")
 endif()
 
+set(BUILD_TESTING OFF CACHE BOOL "" FORCE)
+set(MAXMINDDB_BUILD_BINARIES OFF CACHE BOOL "" FORCE)
+set(MAXMINDDB_INSTALL OFF CACHE BOOL "" FORCE)
+add_subdirectory(
+	${CMAKE_CURRENT_SOURCE_DIR}/../vendor/libmaxminddb
+	${CMAKE_CURRENT_BINARY_DIR}/vendor/libmaxminddb
+)
+
 if (CMAKE_BUILD_TYPE STREQUAL "RELEASE")
     message(STATUS "build dns-gate for release version")
 elseif (CMAKE_BUILD_TYPE STREQUAL "DEBUG")
@@ -94,6 +102,6 @@ set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${output_path})
 link_directories(${output_path})
 
 add_executable(dns-gate ${src_files})
-target_link_libraries(dns-gate ${lib_all})
+target_link_libraries(dns-gate ${lib_all} maxminddb::maxminddb)
 
 ###############################################################################

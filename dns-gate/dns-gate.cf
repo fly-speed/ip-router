@@ -119,4 +119,17 @@ service server
 	upstream_addr = 114.114.114.114|53
 	# 等待上游 DNS 响应的超时时间，单位：秒
 	upstream_timeout = 5
+
+	# DB-IP Country Lite 的 MMDB 文件；相对路径基于 udp_queue_dir
+	geoip_database = dbip-country-lite.mmdb
+	# 需要通过指定网关路由的 ISO 3166-1 两位国家代码，可用逗号分隔
+	geoip_countries = CN
+	# ip-router 的 HTTP 服务地址
+	ip_router_addr = 127.0.0.1:8088
+	# 必须按实际网络环境配置；留空时关闭 GeoIP 自动路由
+	ip_router_gateway =
+	# 调用 ip-router 的连接和读写超时，单位：秒
+	ip_router_timeout = 3
+	# 自动添加路由的 TTL，0 表示永久
+	ip_router_ttl = 600
 }

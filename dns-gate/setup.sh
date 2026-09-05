@@ -157,6 +157,7 @@ create_all_path() {
 copy_all_file() {
 	copy_file a+x,go+rx $SERVICE_NAME $SERVICE_BIN
 	install_file a+x,go-wrx $SERVICE_NAME.cf $SERVICE_CONF
+	copy_file a+x,go+rx update-dbip.sh $SH_PATH/update-dbip.sh
 }
 
 MASTER_PATH=/opt/soft/acl-master

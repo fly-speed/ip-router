@@ -37,6 +37,41 @@ ip router，快捷访问网络。
 
 根页面模板位于 `ip-router/html/index.html`。服务会在每次请求时读取模板，页面通过 `/routes` 接口加载数据，修改 HTML 后刷新即可生效。
 
+#### dns-gate GeoIP 自动路由
+
+`dns-gate` 集成了项目根目录 `vendor/libmaxminddb` 中的 libmaxminddb
+1.13.3 源码，不依赖系统预装该库。收到上游 DNS 响应后，服务查询 A
+记录对应的国家代码；命中 `geoip_countries` 时，会先调用 `ip-router` 的
+批量添加接口，调用完成后再把原始 DNS 响应返回客户端。
+
+DB-IP Country Lite 数据文件不包含在源码仓库中。可在 `dns-gate` 目录运行：
+
+```shell
+./update-dbip.sh
+```
+
+也可以指定输出路径和数据库月份：
+
+```shell
+./update-dbip.sh /var/lib/ip-router/dbip-country-lite.mmdb 2026-09
+```
+
+然后在 `dns-gate.cf` 中配置：
+
+```ini
+geoip_database = /var/lib/ip-router/dbip-country-lite.mmdb
+geoip_countries = CN
+ip_router_addr = 127.0.0.1:8088
+ip_router_gateway = 192.168.1.1
+ip_router_timeout = 3
+ip_router_ttl = 600
+```
+
+`geoip_countries` 支持用逗号、分号或空白分隔多个 ISO 3166-1 两位国家代码。
+`ip_router_gateway` 必须按实际网络环境设置，留空时关闭 GeoIP 自动路由。
+MMDB 查询或路由请求失败时服务会记录日志并继续返回 DNS 响应。[DB-IP Lite](https://db-ip.com/db/lite.php)
+数据采用 CC BY 4.0 许可证，发布使用结果时需按其许可要求注明数据来源。
+
 `GET /routes` 按字符串 KEY 分组返回：
 
 ```json

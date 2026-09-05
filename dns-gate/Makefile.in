@@ -1,4 +1,13 @@
 CC      = g++
+C_COMPILER = cc
+.DEFAULT_GOAL := all
+
+MAXMINDDB_PATH = ../vendor/libmaxminddb
+MAXMINDDB_OBJ = ./vendor_maxminddb.o ./vendor_data_pool.o
+MAXMINDDB_CFLAGS = -c -O3 -D_REENTRANT \
+	-D_POSIX_C_SOURCE=200809L -DPACKAGE_VERSION=\"1.13.3\" \
+	-I./vendor_config -I$(MAXMINDDB_PATH)/include \
+	-I$(MAXMINDDB_PATH)/src
 
 CFLAGS = -c -g -W \
 -Wall \
@@ -12,6 +21,8 @@ CFLAGS = -c -g -W \
 -D_REENTRANT \
 -D_POSIX_PTHREAD_SEMANTICS \
 -D_USE_FAST_MACRO
+
+CFLAGS += -I./vendor_config -I$(MAXMINDDB_PATH)/include
 
 ###########################################################
 #Check system:
@@ -145,7 +156,7 @@ LDFLAGS = -lfiber_cpp -lacl_all -lfiber \
 	  $(EXTLIBS) $(SYSLIB)
 
 COMPILE = $(CC) $(CFLAGS)
-LINK = $(CC) $(OBJ) $(LDFLAGS)
+LINK = $(CC) $(OBJ) $(MAXMINDDB_OBJ) $(LDFLAGS)
 ###########################################################
 OBJ_PATH = .
 
@@ -159,8 +170,14 @@ $(shell mkdir -p ../../../dist/master/conf/service/)
 $(OBJ_PATH)/%.o: %.cpp
 	$(COMPILE) $< -o $@
 
+./vendor_maxminddb.o: $(MAXMINDDB_PATH)/src/maxminddb.c
+	$(C_COMPILER) $(MAXMINDDB_CFLAGS) $< -o $@
+
+./vendor_data_pool.o: $(MAXMINDDB_PATH)/src/data-pool.c
+	$(C_COMPILER) $(MAXMINDDB_CFLAGS) $< -o $@
+
 .PHONY = all clean
-all: RM $(OBJ)
+all: RM $(OBJ) $(MAXMINDDB_OBJ)
 	$(LINK) -o $(PROG)
 	@echo ""
 	@echo "All ok! Output:$(PROG)"
@@ -170,6 +187,7 @@ RM:
 clean:
 	rm -f $(PROG)
 	rm -f $(OBJ)
+	rm -f $(MAXMINDDB_OBJ)
 install:
 	cp $(PROG) ../../../dist/master/sbin/$(RPATH)/
 	cp $(PROG).cf ../../../dist/master/conf/service/
