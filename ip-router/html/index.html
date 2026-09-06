@@ -624,6 +624,8 @@
           <button id="add-selected-domains" class="small" type="button" disabled>
             <span data-i18n="addSelectedDomainsToDns">添加选中域名至系统 DNS</span>
           </button>
+          <button id="delete-selected-memory-routes" class="danger small" type="button" disabled
+            data-i18n="deleteSelectedMemoryRoutes">删除选中缓存路由</button>
         </div>
       </div>
       <div class="card table-card">
@@ -633,7 +635,7 @@
               <tr>
                 <th id="key-sort-header" aria-sort="ascending">
                   <span class="route-key-layout">
-                    <input id="route-select-all" type="checkbox" aria-label="选择全部未配置的根域名" data-i18n-aria-label="selectAllUnconfiguredDomains">
+                    <input id="route-select-all" type="checkbox" aria-label="选择当前查询结果中的全部根域名" data-i18n-aria-label="selectAllRootDomains">
                     <button id="key-sort" class="sort-button" type="button">
                       <span data-i18n="rootDomain">根域名</span> <span id="key-sort-indicator" class="sort-indicator">▲</span>
                     </button>
@@ -790,6 +792,11 @@
         selectAllTlds: "选择当前搜索结果中的全部 TLD",
         globalDnsHint: "添加全部 IANA TLD 后，所有公共 DNS 根区域名都将由 dns-gate 解析；私有后缀、单标签主机名和 mDNS 不在此范围内。",
         addSelectedDomainsToDns: "添加选中域名至系统 DNS", selectAllUnconfiguredDomains: "选择全部未配置的根域名",
+        selectAllRootDomains: "选择当前查询结果中的全部根域名",
+        deleteSelectedMemoryRoutes: "删除选中缓存路由",
+        deleteSelectedMemoryRouteCount: "删除选中的 {count} 个根域名",
+        confirmDeleteSelectedMemoryRoutes: "确定删除选中的 {domains} 个根域名及其 {routes} 条缓存路由吗？系统路由也会同步删除。",
+        selectedDomainsAlreadyConfigured: "选中的域名均已存在于系统 DNS，无需重复添加。",
         searchManagedRoutes: "查找路由", managedRouteSearchPlaceholder: "域名、KEY、IP 或网关",
         noManagedRouteMatches: "没有匹配的服务内存路由",
         rootDomain: "根域名", gateway: "网关", expiresAt: "过期时间", systemStaticRoutes: "系统静态主机路由",
@@ -900,6 +907,11 @@
         addAllMissingTlds: "Add All Unconfigured TLDs", popularTlds: "Popular TLDs", selectAllTlds: "Select all TLDs in current search results",
         globalDnsHint: "After all IANA TLDs are added, dns-gate resolves all public DNS root zones; private suffixes, single-label hosts, and mDNS are excluded.",
         addSelectedDomainsToDns: "Add Selected Domains to System DNS", selectAllUnconfiguredDomains: "Select all unconfigured root domains",
+        selectAllRootDomains: "Select all root domains in the current search results",
+        deleteSelectedMemoryRoutes: "Delete Selected Cached Routes",
+        deleteSelectedMemoryRouteCount: "Delete {count} Selected Root Domains",
+        confirmDeleteSelectedMemoryRoutes: "Delete the selected {domains} root domains and their {routes} cached routes? Their system routes will also be deleted.",
+        selectedDomainsAlreadyConfigured: "All selected domains already exist in system DNS; nothing needs to be added.",
         searchManagedRoutes: "Find Routes", managedRouteSearchPlaceholder: "Domain, KEY, IP, or gateway",
         noManagedRouteMatches: "No matching managed routes",
         rootDomain: "Root Domain", gateway: "Gateway", expiresAt: "Expires At", systemStaticRoutes: "System Static Host Routes",
@@ -1029,6 +1041,7 @@
     };
     const routeSelectAll = document.getElementById("route-select-all");
     const addSelectedDomains = document.getElementById("add-selected-domains");
+    const deleteSelectedMemoryRoutes = document.getElementById("delete-selected-memory-routes");
     const systemPager = {
       page: 1,
       pageSize: 50,
@@ -1808,23 +1821,29 @@
     function updateRouteSelection() {
       const configured = configuredResolverDomains();
       const visibleSelectable = filteredRouteItems().filter((group) =>
-        group.rootDomain && !domainCovered(group.rootDomain, configured)
+        group.rootDomain
       ).map((group) => group.rootDomain);
       const selectedVisibleCount = visibleSelectable.filter((domain) =>
         routePager.selectedDomains.has(domain)
       ).length;
-      const selectedCount = Array.from(routePager.selectedDomains).filter((domain) =>
-        routePager.items.some((group) => group.rootDomain === domain)
-          && !domainCovered(domain, configured)).length;
+      const selectedDomains = Array.from(routePager.selectedDomains).filter((domain) =>
+        routePager.items.some((group) => group.rootDomain === domain));
+      const selectedCount = selectedDomains.length;
+      const addableCount = selectedDomains.filter((domain) =>
+        !domainCovered(domain, configured)).length;
       routeSelectAll.checked = visibleSelectable.length > 0
         && selectedVisibleCount === visibleSelectable.length;
       routeSelectAll.indeterminate = selectedVisibleCount > 0
         && selectedVisibleCount < visibleSelectable.length;
       routeSelectAll.disabled = visibleSelectable.length === 0;
-      addSelectedDomains.disabled = selectedCount === 0;
-      addSelectedDomains.textContent = selectedCount > 0
-        ? t("addSelectedDomainCount", { count: selectedCount })
+      addSelectedDomains.disabled = addableCount === 0;
+      addSelectedDomains.textContent = addableCount > 0
+        ? t("addSelectedDomainCount", { count: addableCount })
         : t("addSelectedDomainsToDns");
+      deleteSelectedMemoryRoutes.disabled = selectedCount === 0;
+      deleteSelectedMemoryRoutes.textContent = selectedCount > 0
+        ? t("deleteSelectedMemoryRouteCount", { count: selectedCount })
+        : t("deleteSelectedMemoryRoutes");
     }
 
     function compareRouteItems(left, right) {
@@ -1952,10 +1971,8 @@
           const checkbox = document.createElement("input");
           checkbox.type = "checkbox";
           checkbox.checked = routePager.selectedDomains.has(group.rootDomain);
-          checkbox.disabled = group.configured;
-          checkbox.setAttribute("aria-label", group.configured
-            ? t("configuredToSystemDns", { domain: group.rootDomain })
-            : t("selectRootDomain", { domain: group.rootDomain }));
+          checkbox.setAttribute("aria-label",
+            t("selectRootDomain", { domain: group.rootDomain }));
           checkbox.addEventListener("change", () => {
             if (checkbox.checked) {
               routePager.selectedDomains.add(group.rootDomain);
@@ -2057,7 +2074,7 @@
       const activeDomains = new Set(routePager.items
         .map((group) => group.rootDomain).filter(Boolean));
       routePager.selectedDomains.forEach((domain) => {
-        if (!activeDomains.has(domain) || domainCovered(domain, configured)) {
+        if (!activeDomains.has(domain)) {
           routePager.selectedDomains.delete(domain);
         }
       });
@@ -2481,9 +2498,8 @@
       await addTldsToSystem(domains, addAllTlds);
     });
     routeSelectAll.addEventListener("change", () => {
-      const configured = configuredResolverDomains();
       filteredRouteItems().forEach((group) => {
-        if (!group.rootDomain || domainCovered(group.rootDomain, configured)) return;
+        if (!group.rootDomain) return;
         if (routeSelectAll.checked) {
           routePager.selectedDomains.add(group.rootDomain);
         } else {
@@ -2493,8 +2509,13 @@
       renderRoutePage();
     });
     addSelectedDomains.addEventListener("click", async () => {
-      const domains = Array.from(routePager.selectedDomains).sort(compareText);
-      if (domains.length === 0) return;
+      const configured = configuredResolverDomains();
+      const domains = Array.from(routePager.selectedDomains)
+        .filter((domain) => !domainCovered(domain, configured)).sort(compareText);
+      if (domains.length === 0) {
+        showNotice(t("selectedDomainsAlreadyConfigured"), "warning");
+        return;
+      }
       if (!window.confirm(t("confirmAddRootDomains", { count: domains.length }))) return;
       addSelectedDomains.disabled = true;
       try {
@@ -2509,6 +2530,53 @@
         showNotice(t("systemDnsFailed", { error: error.message }), "error");
       }
       await loadDomains();
+      await loadRoutes();
+      updateRouteSelection();
+    });
+    deleteSelectedMemoryRoutes.addEventListener("click", async () => {
+      const selectedGroups = routePager.items.filter((group) =>
+        group.rootDomain && routePager.selectedDomains.has(group.rootDomain));
+      if (selectedGroups.length === 0) return;
+      const uniqueTargets = [];
+      const seen = new Set();
+      selectedGroups.forEach((group) => {
+        group.targets.forEach((target) => {
+          const identity = `${target.ip || ""}\n${target.gateway || ""}`;
+          if (!seen.has(identity)) {
+            seen.add(identity);
+            uniqueTargets.push(target);
+          }
+        });
+      });
+      if (!window.confirm(t("confirmDeleteSelectedMemoryRoutes", {
+        domains: selectedGroups.length,
+        routes: uniqueTargets.length
+      }))) return;
+
+      deleteSelectedMemoryRoutes.disabled = true;
+      let succeeded = 0;
+      const errors = [];
+      for (const target of uniqueTargets) {
+        try {
+          await routeRequest("DELETE", {
+            key: target.sourceKey,
+            ip: target.ip || ""
+          });
+          succeeded += 1;
+        } catch (error) {
+          errors.push(error.message);
+        }
+      }
+      showNotice(
+        errors.length === 0
+          ? t("deleteComplete", { succeeded, count: uniqueTargets.length })
+          : t("deleteCompleteWithError", {
+            succeeded,
+            count: uniqueTargets.length,
+            error: errors[0]
+          }),
+        errors.length === 0 ? "success" : succeeded > 0 ? "warning" : "error"
+      );
       await loadRoutes();
       updateRouteSelection();
     });

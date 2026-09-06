@@ -16,7 +16,7 @@ int main(int argc, char* argv[])
 		acl::log::stdout_open(true);
 		acl::master_log_enable(false);
 
-		const char* addrs = "|53";
+		const char* addrs = "127.0.0.1|53";
 		printf("bind on: %s\r\n", addrs);
 
 		unsigned int count = 0;
