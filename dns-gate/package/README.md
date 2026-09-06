@@ -92,6 +92,9 @@ sudo apt install ./dist/dns-gate_1.0.0_$(dpkg --print-architecture).deb
 安装包中的数据库副本保存在 `share/dbip`，只在首次安装或运行数据库缺失时复制。
 如果需要根据国家代码自动调用 ip-router，请先安装并启动 ip-router，然后在
 `conf/dns-gate.cf` 中设置实际的 `ip_router_gateway`、国家代码和服务地址。
+默认的 `http_addr = 127.0.0.1:8053` 为 ip-router 管理页面提供域名解析及
+GeoIP 诊断 API；如需修改端口，应同步修改 ip-router 配置中的
+`dns_gate_http_addr`。
 
 更新数据库并重启服务：
 

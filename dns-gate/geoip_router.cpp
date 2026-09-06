@@ -13,6 +13,7 @@ namespace {
 
 MMDB_s country_database;
 bool database_open = false;
+bool routing_enabled = false;
 std::set<std::string> routed_countries;
 std::string ip_router_addr;
 std::string route_gateway;
@@ -152,21 +153,12 @@ bool geoip_router_start(const char* database_path, const char* countries,
 	route_gateway = gateway == NULL ? "" : gateway;
 	request_timeout = timeout;
 	route_ttl = ttl;
+	routing_enabled = false;
 
 	if (database_path == NULL || *database_path == 0) {
 		logger_warn("GeoIP routing disabled: geoip_database is empty");
 		return false;
 	}
-	if (routed_countries.empty()) {
-		logger_warn("GeoIP routing disabled: geoip_countries is empty");
-		return false;
-	}
-	if (ip_router_addr.empty() || route_gateway.empty()) {
-		logger_warn("GeoIP routing disabled: ip_router_addr or "
-			"ip_router_gateway is empty");
-		return false;
-	}
-
 	int status = MMDB_open(database_path, MMDB_MODE_MMAP, &country_database);
 	if (status != MMDB_SUCCESS) {
 		logger_error("open GeoIP database failed, file=%s, error=%s",
@@ -174,6 +166,13 @@ bool geoip_router_start(const char* database_path, const char* countries,
 		return false;
 	}
 	database_open = true;
+	routing_enabled = !routed_countries.empty() && !ip_router_addr.empty()
+		&& !route_gateway.empty();
+	if (!routing_enabled) {
+		logger_warn("GeoIP database loaded but automatic routing is disabled: "
+			"geoip_countries, ip_router_addr or ip_router_gateway is empty");
+		return true;
+	}
 	logger("GeoIP routing enabled, database=%s, countries=%s, router=%s, "
 		"gateway=%s, ttl=%d", database_path, countries, router_addr, gateway,
 		route_ttl);
@@ -186,12 +185,13 @@ void geoip_router_stop(void)
 		MMDB_close(&country_database);
 		database_open = false;
 	}
+	routing_enabled = false;
 }
 
 void geoip_route_dns_result(const char* name,
 	const acl::rfc1035_response& response)
 {
-	if (!database_open || name == NULL || *name == 0) {
+	if (!database_open || !routing_enabled || name == NULL || *name == 0) {
 		return;
 	}
 
@@ -215,4 +215,29 @@ void geoip_route_dns_result(const char* name,
 	if (!matched.empty()) {
 		add_routes(name, matched);
 	}
+}
+
+bool geoip_database_ready(void)
+{
+	return database_open;
+}
+
+bool geoip_routing_ready(void)
+{
+	return routing_enabled;
+}
+
+bool geoip_lookup_address(const char* ip, std::string& country,
+	bool& route_matched)
+{
+	country.clear();
+	route_matched = false;
+	if (!database_open || ip == NULL || *ip == 0) {
+		return false;
+	}
+	if (!lookup_country(ip, country)) {
+		return false;
+	}
+	route_matched = routed_countries.find(country) != routed_countries.end();
+	return true;
 }

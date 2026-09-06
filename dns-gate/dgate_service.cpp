@@ -1,4 +1,5 @@
 #include "stdafx.h"
+#include <atomic>
 #include <thread>
 #include "dgate_service.h"
 #include "geoip_router.h"
@@ -22,6 +23,7 @@ public:
 };
 
 acl::fiber_tbox<request_message>* request_box;
+std::atomic<unsigned int> query_sequence(1);
 
 void handle_request(request_message& message)
 {
@@ -107,6 +109,49 @@ void service_main(acl::fiber_tbox<request_message>* box)
 }
 
 } // namespace
+
+bool dgate_resolve_domain(const char* name, acl::rfc1035_response& response,
+	acl::string& error)
+{
+	char query[512];
+	unsigned short qid = static_cast<unsigned short>(query_sequence.fetch_add(1));
+	acl::rfc1035_request request;
+	request.set_name(name).set_qid(qid).set_type(acl::rfc1035_type_a);
+	size_t query_length = request.build_query(query, sizeof(query));
+	if (query_length == 0) {
+		error = "failed to build DNS query";
+		return false;
+	}
+
+	acl::socket_stream upstream;
+	if (!upstream.bind_udp("0.0.0.0|0")) {
+		error.format("bind UDP socket failed: %s", acl::last_serror());
+		return false;
+	}
+	upstream.set_rw_timeout(var_cfg_upstream_timeout);
+	if (upstream.sendto(query, query_length, var_cfg_upstream_addr, 0) == -1) {
+		error.format("send DNS query to %s failed: %s", var_cfg_upstream_addr,
+			acl::last_serror());
+		return false;
+	}
+
+	char reply[65536];
+	int length = upstream.read(reply, sizeof(reply), false);
+	if (length == -1) {
+		error.format("read DNS response from %s failed: %s",
+			var_cfg_upstream_addr, acl::last_serror());
+		return false;
+	}
+	if (!response.parse_reply(reply, static_cast<size_t>(length))) {
+		error = "invalid DNS response";
+		return false;
+	}
+	if (response.get_qid() != qid) {
+		error = "DNS response id mismatch";
+		return false;
+	}
+	return true;
+}
 
 void dgate_service_start(void)
 {

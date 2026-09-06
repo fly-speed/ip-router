@@ -237,6 +237,49 @@
       border-radius: 999px;
     }
     .list-actions { display: flex; flex-wrap: wrap; align-items: center; justify-content: flex-end; gap: 8px; }
+    .system-select-column { width: 42px; padding-right: 4px; text-align: center; }
+    .ip-lookup-button {
+      padding: 0;
+      color: #175cd3;
+      font: inherit;
+      font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+      background: transparent;
+      border-radius: 3px;
+    }
+    .ip-lookup-button:hover { color: #1849a9; background: transparent; text-decoration: underline; }
+    .ip-lookup-button:focus-visible { outline: 2px solid #84adff; outline-offset: 3px; }
+    .lookup-dialog {
+      box-sizing: border-box;
+      width: min(560px, calc(100% - 32px));
+      padding: 0;
+      color: #182230;
+      background: #fff;
+      border: 1px solid #e4e7ec;
+      border-radius: 12px;
+      box-shadow: 0 20px 48px rgba(16, 24, 40, .22);
+    }
+    .lookup-dialog::backdrop { background: rgba(16, 24, 40, .45); }
+    .lookup-dialog-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      padding: 18px 20px;
+      border-bottom: 1px solid #eaecf0;
+    }
+    .lookup-dialog-header h2 { margin: 0; font-size: 18px; }
+    .lookup-dialog-content { min-height: 64px; max-height: 50vh; padding: 18px 20px; overflow-y: auto; }
+    .lookup-dialog-content p { margin: 0; }
+    .lookup-dialog-content ul { margin: 12px 0 0; padding-left: 22px; }
+    .lookup-dialog-content li { margin: 7px 0; }
+    .lookup-dialog-footer { display: flex; justify-content: flex-end; padding: 12px 20px; border-top: 1px solid #eaecf0; }
+    .diagnostic-form { display: flex; align-items: end; gap: 10px; }
+    .diagnostic-form label { flex: 1; }
+    .diagnostic-result { margin-top: 14px; }
+    .diagnostic-meta { display: flex; flex-wrap: wrap; gap: 8px 20px; margin-bottom: 14px; }
+    .diagnostic-meta span { color: #475467; font-size: 13px; }
+    .diagnostic-match { color: #027a48; font-weight: 600; }
+    .diagnostic-miss { color: #b54708; font-weight: 600; }
     .tld-toolbar {
       display: flex;
       align-items: end;
@@ -332,6 +375,7 @@
       .list-heading { align-items: start; flex-direction: column; }
       .list-actions { align-items: start; flex-direction: column; }
       .tld-toolbar { align-items: stretch; flex-direction: column; }
+      .diagnostic-form { align-items: stretch; flex-direction: column; }
       .tld-toolbar label { max-width: none; }
       .pagination { align-items: stretch; flex-direction: column; }
       .page-buttons { justify-content: space-between; }
@@ -351,6 +395,7 @@
         <a class="active" href="#route-actions" data-title-key="routeActions" data-description-key="routeActionsDesc"><span class="nav-icon">＋</span><span data-i18n="routeActions">路由操作</span></a>
         <a href="#dns-domains" data-title-key="domainDns" data-description-key="domainDnsDesc"><span class="nav-icon">◆</span><span data-i18n="domainDns">指定域名 DNS</span></a>
         <a href="#global-dns" data-title-key="globalDns" data-description-key="globalDnsDesc"><span class="nav-icon">◎</span><span data-i18n="globalDns">全局 DNS 接管</span></a>
+        <a href="#dns-diagnostic" data-title-key="dnsDiagnostic" data-description-key="dnsDiagnosticDesc"><span class="nav-icon">?</span><span data-i18n="dnsDiagnostic">域名归属诊断</span></a>
         <a href="#memory-routes" data-title-key="memoryRoutes" data-description-key="memoryRoutesDesc"><span class="nav-icon">▤</span><span data-i18n="memoryRoutes">服务内存路由</span></a>
         <a href="#system-routes-panel" data-title-key="systemRoutes" data-description-key="systemRoutesDesc"><span class="nav-icon">⌘</span><span data-i18n="systemRoutes">系统静态路由</span></a>
       </nav>
@@ -433,6 +478,37 @@
       </section>
     </div>
     <div id="notice" class="notice" role="status" aria-live="polite"></div>
+    <section id="dns-diagnostic" class="list-section workspace-view">
+      <div class="list-heading">
+        <div>
+          <h2 data-i18n="dnsDiagnosticHeading">域名解析与国家归属诊断</h2>
+          <p data-i18n="dnsDiagnosticHint">由 dns-gate 使用其上游 DNS 和当前 GeoIP 国家库实时检测，不会添加系统路由。</p>
+        </div>
+      </div>
+      <div class="card panel">
+        <form id="dns-lookup-form" class="diagnostic-form">
+          <label>
+            <span data-i18n="domain">域名</span>
+            <input id="dns-lookup-domain" name="domain" maxlength="253" required
+              placeholder="例如 weibo.com" data-i18n-placeholder="dnsLookupPlaceholder">
+          </label>
+          <button type="submit" data-i18n="resolveAndInspect">解析并判断国家</button>
+        </form>
+        <div id="dns-lookup-result" class="diagnostic-result" hidden>
+          <div id="dns-lookup-meta" class="diagnostic-meta"></div>
+          <div class="table-scroll">
+            <table>
+              <thead><tr>
+                <th data-i18n="targetIp">目标 IP</th>
+                <th data-i18n="countryCode">国家代码</th>
+                <th data-i18n="routeDecision">路由判断</th>
+              </tr></thead>
+              <tbody id="dns-lookup-rows"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </section>
     <section id="dns-domains" class="list-section workspace-view">
       <div class="list-heading">
         <div>
@@ -606,6 +682,8 @@
             <input id="system-route-search" type="search" placeholder="IP、网关或网络接口"
               data-i18n-placeholder="systemRouteSearchPlaceholder">
           </label>
+          <button id="delete-selected-system-routes" class="danger small" type="button" disabled
+            data-i18n="deleteSelectedSystemRoutes">删除选中路由</button>
         </div>
       </div>
       <div class="card table-card">
@@ -613,6 +691,10 @@
           <table>
             <thead>
               <tr>
+                <th class="system-select-column">
+                  <input id="system-route-select-all" type="checkbox" aria-label="选择当前查询结果中的全部系统路由"
+                    data-i18n-aria-label="selectAllSystemRoutes">
+                </th>
                 <th data-i18n="targetIp">目标 IP</th>
                 <th data-i18n="gateway">网关</th>
                 <th data-i18n="networkInterface">网络接口</th>
@@ -620,7 +702,7 @@
               </tr>
             </thead>
             <tbody id="system-route-rows">
-              <tr><td class="empty" colspan="4">正在加载…</td></tr>
+              <tr><td class="empty" colspan="5">正在加载…</td></tr>
             </tbody>
           </table>
         </div>
@@ -644,6 +726,15 @@
       </div>
     </main>
   </div>
+  <dialog id="ip-domain-dialog" class="lookup-dialog">
+    <div class="lookup-dialog-header">
+      <h2 id="ip-domain-dialog-title">IP 域名反查</h2>
+    </div>
+    <div id="ip-domain-dialog-content" class="lookup-dialog-content"></div>
+    <div class="lookup-dialog-footer">
+      <button id="close-ip-domain-dialog" type="button" data-i18n="close">关闭</button>
+    </div>
+  </dialog>
   <script>
     const translations = {
       "zh-CN": {
@@ -651,6 +742,7 @@
         routeActions: "路由操作", routeActionsDesc: "添加、删除主机路由并配置全局网关",
         domainDns: "指定域名 DNS", domainDnsDesc: "管理由 dns-gate 接管的指定域名",
         globalDns: "全局 DNS 接管", globalDnsDesc: "通过 IANA 一级根域名接管所有公共 DNS 查询",
+        dnsDiagnostic: "域名归属诊断", dnsDiagnosticDesc: "使用 dns-gate 实时解析域名并检查 IP 国家归属",
         memoryRoutes: "服务内存路由", memoryRoutesDesc: "查看、折叠和删除 ip-router 管理的路由",
         systemRoutes: "系统静态路由", systemRoutesDesc: "直接查看和删除操作系统中的静态主机路由",
         domainJsonApi: "域名 JSON API", memoryJsonApi: "内存路由 JSON API",
@@ -673,6 +765,15 @@
         globalRouteSaveFailed: "全局路由设置保存失败：{error}", confirmClearGlobalRoute: "确定取消全局路由设置吗？",
         globalRouteCleared: "全局路由设置已取消。", globalRouteClearFailed: "取消全局路由设置失败：{error}",
         domainDnsRouting: "指定域名 DNS 分流",
+        dnsDiagnosticHeading: "域名解析与国家归属诊断",
+        dnsDiagnosticHint: "由 dns-gate 使用其上游 DNS 和当前 GeoIP 国家库实时检测，不会添加系统路由。",
+        dnsLookupPlaceholder: "例如 weibo.com", resolveAndInspect: "解析并判断国家",
+        countryCode: "国家代码", routeDecision: "路由判断", upstreamDns: "上游 DNS：{upstream}",
+        geoipReady: "国家库：已加载", geoipNotReady: "国家库：未加载",
+        geoipRoutingReady: "自动路由：已就绪", geoipRoutingNotReady: "自动路由：配置不完整",
+        routeMatched: "命中路由国家", routeNotMatched: "未命中路由国家",
+        countryUnknown: "未知", noARecords: "没有解析到 IPv4 A 记录",
+        cnameResult: "CNAME：{cnames}", dnsLookupFailed: "域名诊断失败：{error}",
         domainDnsRoutingDesc: "这些域名及其子域名由 dns-gate 解析，其余域名仍使用 VPN DNS",
         searchDomains: "查找域名", domainSearchPlaceholder: "输入部分字符或多个关键字",
         noDomainMatches: "没有匹配的域名",
@@ -694,6 +795,15 @@
         rootDomain: "根域名", gateway: "网关", expiresAt: "过期时间", systemStaticRoutes: "系统静态主机路由",
         searchSystemRoutes: "查找系统路由", systemRouteSearchPlaceholder: "IP、网关或网络接口",
         noSystemRouteMatches: "没有匹配的系统静态路由", networkInterface: "网络接口",
+        deleteSelectedSystemRoutes: "删除选中路由", deleteSelectedSystemRouteCount: "删除选中的 {count} 条路由",
+        selectAllSystemRoutes: "选择当前查询结果中的全部系统路由",
+        selectSystemRoute: "选择目标 IP {ip}、网关 {gateway} 的系统路由",
+        confirmDeleteSelectedSystemRoutes: "确定从系统路由表删除选中的 {count} 条路由吗？",
+        lookupIpDomains: "反查使用 IP {ip} 的域名", ipDomainLookupTitle: "IP {ip} 的域名反查",
+        lookingUpIpDomains: "正在从服务器读取使用该 IP 的域名…",
+        ipDomainLookupCount: "找到 {count} 个使用该 IP 的域名/KEY：",
+        noDomainsForIp: "服务内存路由中没有域名/KEY 使用该 IP。",
+        ipDomainLookupFailed: "域名反查失败：{error}", close: "关闭",
         loading: "正在加载…", unknownError: "未知错误",
         secondsRemaining: "{ttl} 秒（剩余 {remaining} 秒）", permanent: "永久", delete: "删除",
         deleteAll: "删除全部", deleteFromSystem: "从系统删除", configured: "已配置",
@@ -746,6 +856,7 @@
         routeActions: "Route Actions", routeActionsDesc: "Add or delete host routes and configure the global gateway",
         domainDns: "Domain DNS", domainDnsDesc: "Manage domains resolved by dns-gate",
         globalDns: "Global DNS", globalDnsDesc: "Route public DNS queries by IANA top-level domains",
+        dnsDiagnostic: "Domain Diagnostics", dnsDiagnosticDesc: "Resolve a domain through dns-gate and inspect each IP country",
         memoryRoutes: "Managed Routes", memoryRoutesDesc: "View, expand, and delete routes managed by ip-router",
         systemRoutes: "System Routes", systemRoutesDesc: "View and delete static host routes in the operating system",
         domainJsonApi: "Domain JSON API", memoryJsonApi: "Managed Routes JSON API", systemJsonApi: "System Routes JSON API",
@@ -768,6 +879,15 @@
         globalRouteSaveFailed: "Failed to save global route settings: {error}", confirmClearGlobalRoute: "Disable the global route setting?",
         globalRouteCleared: "Global route setting disabled.", globalRouteClearFailed: "Failed to disable global route setting: {error}",
         domainDnsRouting: "Domain DNS Routing", domainDnsRoutingDesc: "These domains and subdomains use dns-gate; all others keep using VPN DNS",
+        dnsDiagnosticHeading: "DNS and Country Diagnostics",
+        dnsDiagnosticHint: "dns-gate checks its upstream DNS and current GeoIP database in real time without adding system routes.",
+        dnsLookupPlaceholder: "e.g. weibo.com", resolveAndInspect: "Resolve and Inspect",
+        countryCode: "Country Code", routeDecision: "Route Decision", upstreamDns: "Upstream DNS: {upstream}",
+        geoipReady: "Country database: loaded", geoipNotReady: "Country database: not loaded",
+        geoipRoutingReady: "Automatic routing: ready", geoipRoutingNotReady: "Automatic routing: incomplete configuration",
+        routeMatched: "Matches a routed country", routeNotMatched: "Does not match a routed country",
+        countryUnknown: "Unknown", noARecords: "No IPv4 A records were resolved",
+        cnameResult: "CNAME: {cnames}", dnsLookupFailed: "Domain diagnostics failed: {error}",
         searchDomains: "Find Domains", domainSearchPlaceholder: "Enter partial text or multiple keywords",
         noDomainMatches: "No matching domains",
         batchAddDomains: "Add Domains in Batch", domainsPlaceholder: "One domain per line, or separate with commas, semicolons, or spaces\nExample:\nwebcool.cn\nexample.com",
@@ -785,6 +905,15 @@
         rootDomain: "Root Domain", gateway: "Gateway", expiresAt: "Expires At", systemStaticRoutes: "System Static Host Routes",
         searchSystemRoutes: "Find System Routes", systemRouteSearchPlaceholder: "IP, gateway, or network interface",
         noSystemRouteMatches: "No matching system static routes", networkInterface: "Network Interface",
+        deleteSelectedSystemRoutes: "Delete Selected Routes", deleteSelectedSystemRouteCount: "Delete {count} Selected Routes",
+        selectAllSystemRoutes: "Select all system routes in the current search results",
+        selectSystemRoute: "Select the system route for target IP {ip} through gateway {gateway}",
+        confirmDeleteSelectedSystemRoutes: "Delete the selected {count} routes from the system route table?",
+        lookupIpDomains: "Find domains using IP {ip}", ipDomainLookupTitle: "Domains for IP {ip}",
+        lookingUpIpDomains: "Reading domains that use this IP from the server…",
+        ipDomainLookupCount: "Found {count} domains/KEYs using this IP:",
+        noDomainsForIp: "No domain/KEY in the managed routes uses this IP.",
+        ipDomainLookupFailed: "Domain lookup failed: {error}", close: "Close",
         loading: "Loading…", unknownError: "Unknown error",
         secondsRemaining: "{ttl} sec ({remaining} sec remaining)", permanent: "Permanent", delete: "Delete", deleteAll: "Delete All",
         deleteFromSystem: "Delete from System", configured: "Configured", pageInfo: "Page {page} / {pages}, {count} {unit} total",
@@ -840,6 +969,15 @@
     const systemSummary = document.getElementById("system-summary");
     const systemRows = document.getElementById("system-route-rows");
     const systemRouteSearch = document.getElementById("system-route-search");
+    const systemRouteSelectAll = document.getElementById("system-route-select-all");
+    const deleteSelectedSystemRoutes = document.getElementById("delete-selected-system-routes");
+    const ipDomainDialog = document.getElementById("ip-domain-dialog");
+    const ipDomainDialogTitle = document.getElementById("ip-domain-dialog-title");
+    const ipDomainDialogContent = document.getElementById("ip-domain-dialog-content");
+    const dnsLookupForm = document.getElementById("dns-lookup-form");
+    const dnsLookupResult = document.getElementById("dns-lookup-result");
+    const dnsLookupMeta = document.getElementById("dns-lookup-meta");
+    const dnsLookupRows = document.getElementById("dns-lookup-rows");
     const domainRows = document.getElementById("domain-rows");
     const domainSearch = document.getElementById("domain-search");
     const notice = document.getElementById("notice");
@@ -895,11 +1033,14 @@
       page: 1,
       pageSize: 50,
       items: [],
+      selected: new Set(),
       pageSizeElement: document.getElementById("system-page-size"),
       previous: document.getElementById("system-prev"),
       next: document.getElementById("system-next"),
       info: document.getElementById("system-page-info")
     };
+    const ipLookupState = { ip: "", status: "idle", keys: [], error: "" };
+    const dnsLookupState = { data: null };
     const languageSwitch = document.getElementById("language-switch");
 
     function applyTranslations() {
@@ -925,6 +1066,8 @@
       renderRoutePage();
       renderSystemRoutePage();
       renderGlobalRouteSettings();
+      renderIpLookupDialog();
+      renderDnsLookupResult();
       updateRouteCountdowns();
     }
 
@@ -983,7 +1126,7 @@
       systemRows.replaceChildren();
       const row = document.createElement("tr");
       addCell(row, message, "empty");
-      row.firstChild.colSpan = 4;
+      row.firstChild.colSpan = 5;
       systemRows.appendChild(row);
     }
 
@@ -998,6 +1141,139 @@
     function showNotice(message, type) {
       notice.textContent = message;
       notice.className = `notice ${type}`;
+    }
+
+    function renderDnsLookupResult() {
+      const data = dnsLookupState.data;
+      if (!data) {
+        dnsLookupResult.hidden = true;
+        return;
+      }
+      dnsLookupResult.hidden = false;
+      dnsLookupMeta.replaceChildren();
+      const upstream = document.createElement("span");
+      upstream.textContent = t("upstreamDns", { upstream: data.upstream || "—" });
+      dnsLookupMeta.appendChild(upstream);
+      const database = document.createElement("span");
+      database.textContent = t(data.database_ready ? "geoipReady" : "geoipNotReady");
+      database.className = data.database_ready ? "diagnostic-match" : "diagnostic-miss";
+      dnsLookupMeta.appendChild(database);
+      const routing = document.createElement("span");
+      routing.textContent = t(data.routing_ready
+        ? "geoipRoutingReady" : "geoipRoutingNotReady");
+      routing.className = data.routing_ready ? "diagnostic-match" : "diagnostic-miss";
+      dnsLookupMeta.appendChild(routing);
+      const aliases = (Array.isArray(data.cnames) ? data.cnames : [])
+        .map((item) => item.name || "").filter(Boolean);
+      if (aliases.length > 0) {
+        const cname = document.createElement("span");
+        cname.textContent = t("cnameResult", { cnames: aliases.join(", ") });
+        dnsLookupMeta.appendChild(cname);
+      }
+
+      dnsLookupRows.replaceChildren();
+      const addresses = Array.isArray(data.addresses) ? data.addresses : [];
+      if (addresses.length === 0) {
+        const row = document.createElement("tr");
+        addCell(row, t("noARecords"), "empty");
+        row.firstChild.colSpan = 3;
+        dnsLookupRows.appendChild(row);
+        return;
+      }
+      addresses.forEach((address) => {
+        const row = document.createElement("tr");
+        addCell(row, address.ip || "", "", true);
+        addCell(row, address.country_found && address.country
+          ? address.country : t("countryUnknown"));
+        addCell(row, t(address.route_matched ? "routeMatched" : "routeNotMatched"),
+          address.route_matched ? "diagnostic-match" : "diagnostic-miss");
+        dnsLookupRows.appendChild(row);
+      });
+    }
+
+    async function runDnsLookup(domain, button) {
+      if (button) button.disabled = true;
+      try {
+        const response = await fetch(`/dns-lookup?${new URLSearchParams({ domain })}`,
+          { cache: "no-store" });
+        const data = await response.json().catch(() => ({}));
+        if (!response.ok) throw new Error(data.message || `HTTP ${response.status}`);
+        dnsLookupState.data = data;
+        notice.textContent = "";
+        notice.className = "notice";
+        renderDnsLookupResult();
+      } catch (error) {
+        dnsLookupState.data = null;
+        renderDnsLookupResult();
+        showNotice(t("dnsLookupFailed", { error: error.message }), "error");
+      } finally {
+        if (button) button.disabled = false;
+      }
+    }
+
+    function renderIpLookupDialog() {
+      if (!ipLookupState.ip) return;
+      ipDomainDialogTitle.textContent = t("ipDomainLookupTitle", { ip: ipLookupState.ip });
+      ipDomainDialogContent.replaceChildren();
+      const message = document.createElement("p");
+      if (ipLookupState.status === "loading") {
+        message.textContent = t("lookingUpIpDomains");
+      } else if (ipLookupState.status === "error") {
+        message.textContent = t("ipDomainLookupFailed", { error: ipLookupState.error });
+      } else if (ipLookupState.keys.length === 0) {
+        message.textContent = t("noDomainsForIp");
+      } else {
+        message.textContent = t("ipDomainLookupCount", { count: ipLookupState.keys.length });
+      }
+      ipDomainDialogContent.appendChild(message);
+      if (ipLookupState.status === "loaded" && ipLookupState.keys.length > 0) {
+        const list = document.createElement("ul");
+        ipLookupState.keys.forEach((key) => {
+          const item = document.createElement("li");
+          const code = document.createElement("code");
+          code.textContent = key;
+          item.appendChild(code);
+          list.appendChild(item);
+        });
+        ipDomainDialogContent.appendChild(list);
+      }
+    }
+
+    function openIpDomainDialog() {
+      if (typeof ipDomainDialog.showModal === "function") {
+        if (!ipDomainDialog.open) ipDomainDialog.showModal();
+      } else {
+        ipDomainDialog.setAttribute("open", "");
+      }
+    }
+
+    async function lookupDomainsForIp(ip) {
+      const requestedIp = ip;
+      ipLookupState.ip = ip;
+      ipLookupState.status = "loading";
+      ipLookupState.keys = [];
+      ipLookupState.error = "";
+      renderIpLookupDialog();
+      openIpDomainDialog();
+      try {
+        const response = await fetch("/routes", { cache: "no-store" });
+        const data = await response.json().catch(() => ({}));
+        if (!response.ok) throw new Error(data.message || `HTTP ${response.status}`);
+        if (ipLookupState.ip !== requestedIp) return;
+        const keys = new Set();
+        (Array.isArray(data.routes) ? data.routes : []).forEach((route) => {
+          if ((Array.isArray(route.ips) ? route.ips : []).some((target) => target.ip === ip)) {
+            if (route.key) keys.add(route.key);
+          }
+        });
+        ipLookupState.keys = Array.from(keys).sort(compareText);
+        ipLookupState.status = "loaded";
+      } catch (error) {
+        if (ipLookupState.ip !== requestedIp) return;
+        ipLookupState.status = "error";
+        ipLookupState.error = error.message;
+      }
+      renderIpLookupDialog();
     }
 
     function renderGlobalRouteSettings() {
@@ -1186,6 +1462,42 @@
           button.disabled = false;
         }
       });
+      cell.appendChild(button);
+      row.appendChild(cell);
+    }
+
+    function systemRouteIdentity(route) {
+      return `${route.ip || ""}\n${route.gateway || ""}`;
+    }
+
+    function addSystemRouteSelection(row, route) {
+      const cell = document.createElement("td");
+      cell.className = "system-select-column";
+      const checkbox = document.createElement("input");
+      checkbox.type = "checkbox";
+      checkbox.checked = systemPager.selected.has(systemRouteIdentity(route));
+      checkbox.setAttribute("aria-label", t("selectSystemRoute", {
+        ip: route.ip || "",
+        gateway: route.gateway || ""
+      }));
+      checkbox.addEventListener("change", () => {
+        const identity = systemRouteIdentity(route);
+        if (checkbox.checked) systemPager.selected.add(identity);
+        else systemPager.selected.delete(identity);
+        updateSystemRouteSelection();
+      });
+      cell.appendChild(checkbox);
+      row.appendChild(cell);
+    }
+
+    function addIpLookupCell(row, ip) {
+      const cell = document.createElement("td");
+      const button = document.createElement("button");
+      button.type = "button";
+      button.className = "ip-lookup-button";
+      button.textContent = ip;
+      button.setAttribute("aria-label", t("lookupIpDomains", { ip }));
+      button.addEventListener("click", () => lookupDomainsForIp(ip));
       cell.appendChild(button);
       row.appendChild(cell);
     }
@@ -1781,12 +2093,32 @@
         fuzzyFieldsMatch([route.ip, route.gateway, route.interface], query));
     }
 
+    function updateSystemRouteSelection() {
+      const activeIdentities = new Set(systemPager.items.map(systemRouteIdentity));
+      systemPager.selected.forEach((identity) => {
+        if (!activeIdentities.has(identity)) systemPager.selected.delete(identity);
+      });
+      const filteredIdentities = filteredSystemRouteItems().map(systemRouteIdentity);
+      const selectedCount = filteredIdentities.filter((identity) =>
+        systemPager.selected.has(identity)).length;
+      systemRouteSelectAll.disabled = filteredIdentities.length === 0;
+      systemRouteSelectAll.checked = filteredIdentities.length > 0
+        && selectedCount === filteredIdentities.length;
+      systemRouteSelectAll.indeterminate = selectedCount > 0
+        && selectedCount < filteredIdentities.length;
+      deleteSelectedSystemRoutes.disabled = systemPager.selected.size === 0;
+      deleteSelectedSystemRoutes.textContent = systemPager.selected.size > 0
+        ? t("deleteSelectedSystemRouteCount", { count: systemPager.selected.size })
+        : t("deleteSelectedSystemRoutes");
+    }
+
     function renderSystemRoutePage() {
       systemRows.replaceChildren();
       if (systemPager.items.length === 0) {
         systemSummary.textContent = t("systemRouteSummary", { count: 0 });
         updatePager(systemPager);
         showSystemMessage(t("noSystemRoutes"));
+        updateSystemRouteSelection();
         return;
       }
       const filteredItems = filteredSystemRouteItems();
@@ -1799,16 +2131,19 @@
       updatePager(systemPager, filteredItems.length);
       if (filteredItems.length === 0) {
         showSystemMessage(t("noSystemRouteMatches"));
+        updateSystemRouteSelection();
         return;
       }
       currentPageItems(systemPager, filteredItems).forEach((route) => {
         const row = document.createElement("tr");
-        addCell(row, route.ip || "");
+        addSystemRouteSelection(row, route);
+        addIpLookupCell(row, route.ip || "");
         addCell(row, route.gateway || "");
         addCell(row, route.interface || "—");
         addSystemDeleteButton(row, route.ip || "", route.gateway || "");
         systemRows.appendChild(row);
       });
+      updateSystemRouteSelection();
     }
 
     function renderSystemRoutes(routes) {
@@ -1864,6 +2199,14 @@
           await loadDomains();
           await loadTlds();
           break;
+        case "dns-diagnostic": {
+          const domain = dnsLookupForm.elements.domain.value.trim();
+          if (domain) {
+            await runDnsLookup(domain,
+              dnsLookupForm.querySelector("button[type=submit]"));
+          }
+          break;
+        }
         case "memory-routes":
           summary.textContent = t("reloadingRoutes");
           showMessage(t("loading"));
@@ -1884,6 +2227,14 @@
       event.preventDefault();
       const active = document.querySelector(".workspace-view.active");
       if (active) await refreshWorkspace(active.id);
+    });
+
+    dnsLookupForm.addEventListener("submit", async (event) => {
+      event.preventDefault();
+      const domain = dnsLookupForm.elements.domain.value.trim();
+      if (!domain) return;
+      await runDnsLookup(domain,
+        dnsLookupForm.querySelector("button[type=submit]"));
     });
 
     globalRouteForm.addEventListener("submit", async (event) => {
@@ -2004,6 +2355,60 @@
     systemRouteSearch.addEventListener("input", () => {
       systemPager.page = 1;
       renderSystemRoutePage();
+    });
+    systemRouteSelectAll.addEventListener("change", () => {
+      filteredSystemRouteItems().forEach((route) => {
+        const identity = systemRouteIdentity(route);
+        if (systemRouteSelectAll.checked) systemPager.selected.add(identity);
+        else systemPager.selected.delete(identity);
+      });
+      renderSystemRoutePage();
+    });
+    deleteSelectedSystemRoutes.addEventListener("click", async () => {
+      const selectedRoutes = [];
+      const seen = new Set();
+      systemPager.items.forEach((route) => {
+        const identity = systemRouteIdentity(route);
+        if (systemPager.selected.has(identity) && !seen.has(identity)) {
+          seen.add(identity);
+          selectedRoutes.push(route);
+        }
+      });
+      if (selectedRoutes.length === 0) return;
+      if (!window.confirm(t("confirmDeleteSelectedSystemRoutes", {
+        count: selectedRoutes.length
+      }))) return;
+      deleteSelectedSystemRoutes.disabled = true;
+      let succeeded = 0;
+      const errors = [];
+      for (const route of selectedRoutes) {
+        try {
+          await routeRequest("DELETE", {
+            ip: route.ip || "",
+            gateway: route.gateway || ""
+          }, "/system-route");
+          systemPager.selected.delete(systemRouteIdentity(route));
+          succeeded += 1;
+        } catch (error) {
+          errors.push(error.message);
+        }
+      }
+      showNotice(
+        errors.length === 0
+          ? t("deleteComplete", { succeeded, count: selectedRoutes.length })
+          : t("deleteCompleteWithError", {
+            succeeded,
+            count: selectedRoutes.length,
+            error: errors[0]
+          }),
+        errors.length === 0 ? "success" : succeeded > 0 ? "warning" : "error"
+      );
+      await loadSystemRoutes();
+      updateSystemRouteSelection();
+    });
+    document.getElementById("close-ip-domain-dialog").addEventListener("click", () => {
+      if (typeof ipDomainDialog.close === "function") ipDomainDialog.close();
+      else ipDomainDialog.removeAttribute("open");
     });
     tldSearch.addEventListener("input", renderTlds);
     tldSelectAll.addEventListener("change", () => {

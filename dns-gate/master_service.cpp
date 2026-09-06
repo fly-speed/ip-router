@@ -1,5 +1,6 @@
 #include "stdafx.h"
 #include "dgate_service.h"
+#include "dns_http_service.h"
 #include "geoip_router.h"
 #include "master_service.h"
 
@@ -11,12 +12,14 @@ char *var_cfg_geoip_database;
 char *var_cfg_geoip_countries;
 char *var_cfg_ip_router_addr;
 char *var_cfg_ip_router_gateway;
+char *var_cfg_http_addr;
 acl::master_str_tbl var_conf_str_tab[] = {
 	{ "upstream_addr", "114.114.114.114|53", &var_cfg_upstream_addr },
 	{ "geoip_database", "dbip-country-lite.mmdb", &var_cfg_geoip_database },
 	{ "geoip_countries", "CN", &var_cfg_geoip_countries },
 	{ "ip_router_addr", "127.0.0.1:8088", &var_cfg_ip_router_addr },
 	{ "ip_router_gateway", "192.168.1.1", &var_cfg_ip_router_gateway },
+	{ "http_addr", "127.0.0.1:8053", &var_cfg_http_addr },
 
 	{ 0, 0, 0 }
 };
@@ -81,6 +84,7 @@ void master_service::proc_on_init(void)
 		var_cfg_ip_router_addr, var_cfg_ip_router_gateway,
 		var_cfg_ip_router_timeout, var_cfg_ip_router_ttl);
 	dgate_service_start();
+	dns_http_service_start(var_cfg_http_addr);
 }
 
 void master_service::proc_on_exit(void)

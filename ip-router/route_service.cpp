@@ -1,6 +1,7 @@
 #include "stdafx.h"
 #include "domain_manager.h"
 #include "http_service.h"
+#include "master_service.h"
 #include "route_manager.h"
 #include "route_service.h"
 
@@ -734,6 +735,50 @@ bool system_route_delete(HttpRequest& request, HttpResponse& response)
 		destination, gateway);
 }
 
+bool dns_domain_lookup(HttpRequest& request, HttpResponse& response)
+{
+	const char* domain = request.getParameter("domain");
+	if (domain == NULL || *domain == 0 || strlen(domain) > 253) {
+		return reply_json(response, 400, false,
+			"parameter 'domain' is required and must not exceed 253 bytes");
+	}
+	if (var_cfg_dns_gate_http_addr == NULL
+		|| *var_cfg_dns_gate_http_addr == 0) {
+		return reply_json(response, 503, false,
+			"dns_gate_http_addr is not configured");
+	}
+
+	acl::string encoded;
+	encoded.url_encode(domain);
+	acl::string url;
+	url.format("/lookup?domain=%s", encoded.c_str());
+	acl::http_request upstream(var_cfg_dns_gate_http_addr,
+		var_cfg_dns_gate_http_timeout, var_cfg_dns_gate_http_timeout);
+	upstream.request_header()
+		.set_method(acl::HTTP_METHOD_GET)
+		.set_url(url.c_str(), false)
+		.set_host(var_cfg_dns_gate_http_addr)
+		.set_keep_alive(false);
+	if (!upstream.request(NULL, 0)) {
+		acl::string message;
+		message.format("connect to dns-gate HTTP service %s failed: %s",
+			var_cfg_dns_gate_http_addr, acl::last_serror());
+		logger_error("%s", message.c_str());
+		return reply_json(response, 502, false, message.c_str());
+	}
+
+	int status = upstream.http_status();
+	acl::string body;
+	if (!upstream.get_body(body)) {
+		return reply_json(response, 502, false,
+			"failed to read dns-gate HTTP response");
+	}
+	response.setStatus(status > 0 ? status : 502);
+	response.setContentType("application/json; charset=utf-8");
+	response.setContentLength(body.size());
+	return response.write(body);
+}
+
 } // namespace
 
 void register_route_service(http_service& service)
@@ -745,6 +790,7 @@ void register_route_service(http_service& service)
 		.Get("/tlds", tld_list)
 		.Get("/routes", route_list)
 		.Get("/system-routes", system_route_list)
+		.Get("/dns-lookup", dns_domain_lookup)
 		.Post("/route", route_add)
 		.Post("/route-settings", route_settings_set)
 		.Post("/domain", domain_add)

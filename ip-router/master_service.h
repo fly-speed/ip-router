@@ -2,6 +2,9 @@
 
 class http_service;
 
+extern char *var_cfg_dns_gate_http_addr;
+extern int var_cfg_dns_gate_http_timeout;
+
 class master_service : public acl::master_fiber
 {
 public:

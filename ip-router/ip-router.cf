@@ -99,6 +99,9 @@ service ip-router
 #	由上述域名使用的 dns-gate 地址、端口及 resolver 优先级
 	dns_gate_nameserver = 127.0.0.1
 	dns_gate_port = 53
+	# dns-gate 提供的域名解析及 GeoIP 诊断 HTTP 服务
+	dns_gate_http_addr = 127.0.0.1:8053
+	dns_gate_http_timeout = 8
 	resolver_search_order = 1
 #	读写超时时间, 单位为秒
 	fiber_rw_timeout = 120

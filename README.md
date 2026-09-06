@@ -83,6 +83,8 @@ ip-router 和 dns-gate 的安装路径分别固定为 `/opt/soft/ip-router` 和
 resolver_dir = /etc/resolver
 dns_gate_nameserver = 127.0.0.1
 dns_gate_port = 53
+dns_gate_http_addr = 127.0.0.1:8053
+dns_gate_http_timeout = 8
 resolver_search_order = 1
 ```
 
@@ -148,6 +150,7 @@ DB-IP Country Lite 数据文件不包含在源码仓库中。可在 `dns-gate` �
 ```ini
 geoip_database = /var/lib/ip-router/dbip-country-lite.mmdb
 geoip_countries = CN
+http_addr = 127.0.0.1:8053
 ip_router_addr = 127.0.0.1:8088
 ip_router_gateway = 192.168.1.1
 ip_router_timeout = 3
@@ -158,6 +161,22 @@ ip_router_ttl = 600
 `ip_router_gateway` 必须按实际网络环境设置，留空时关闭 GeoIP 自动路由。
 MMDB 查询或路由请求失败时服务会记录日志并继续返回 DNS 响应。[DB-IP Lite](https://db-ip.com/db/lite.php)
 数据采用 CC BY 4.0 许可证，发布使用结果时需按其许可要求注明数据来源。
+
+dns-gate 同时在 `http_addr` 提供只读诊断接口：
+
+```shell
+curl 'http://127.0.0.1:8053/lookup?domain=weibo.com'
+```
+
+接口使用与 UDP 代理相同的上游 DNS 和 GeoIP 数据库，返回 A 记录、CNAME、
+国家代码以及每个 IP 是否命中 `geoip_countries`。诊断查询不会向 ip-router
+添加路由。ip-router 的 `GET /dns-lookup?domain=<域名>` 会代理该接口，管理
+页面左侧的“域名归属诊断”可直接展示结果。出于安全考虑，建议两个 HTTP
+服务均只监听本机地址。
+
+国家数据库加载状态与自动路由状态相互独立：即使未配置网关，诊断接口仍可
+查询 IP 国家；只有 `geoip_countries`、`ip_router_addr` 和
+`ip_router_gateway` 均有效时，自动路由状态才会显示为“已就绪”。
 
 `GET /routes` 按字符串 KEY 分组返回：
 

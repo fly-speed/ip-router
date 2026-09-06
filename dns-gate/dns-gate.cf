@@ -119,6 +119,8 @@ service dns-gate
 	upstream_addr = 114.114.114.114|53
 	# 等待上游 DNS 响应的超时时间，单位：秒
 	upstream_timeout = 5
+	# 提供域名解析及 GeoIP 诊断 API，仅建议监听本机地址
+	http_addr = 127.0.0.1:8053
 
 	# DB-IP Country Lite 的 MMDB 文件；相对路径基于 udp_queue_dir
 	geoip_database = dbip-country-lite.mmdb

@@ -14,6 +14,7 @@ char *var_cfg_key_pass;		// For OpenSSL, MbedTLS, and PolarSSL
 char *var_cfg_routes_file;	// Route persistence file
 char *var_cfg_resolver_dir;	// macOS split DNS resolver directory
 char *var_cfg_dns_gate_nameserver; // dns-gate address used by resolver files
+char *var_cfg_dns_gate_http_addr; // dns-gate domain diagnostic HTTP service
 
 acl::master_str_tbl var_conf_str_tab[] = {
 	{ "libcrypto_path",	"",	&var_cfg_libcrypto_path	},
@@ -25,6 +26,7 @@ acl::master_str_tbl var_conf_str_tab[] = {
 	{ "routes_file",	"routes.db", &var_cfg_routes_file	},
 	{ "resolver_dir",	"/etc/resolver", &var_cfg_resolver_dir	},
 	{ "dns_gate_nameserver", "127.0.0.1", &var_cfg_dns_gate_nameserver },
+	{ "dns_gate_http_addr", "127.0.0.1:8053", &var_cfg_dns_gate_http_addr },
 
 	{ 0, 0, 0 }
 };
@@ -40,11 +42,13 @@ acl::master_bool_tbl var_conf_bool_tab[] = {
 static int  var_cfg_io_timeout;
 static int  var_cfg_dns_gate_port;
 static int  var_cfg_resolver_search_order;
+int  var_cfg_dns_gate_http_timeout;
 
 acl::master_int_tbl var_conf_int_tab[] = {
 	{ "io_timeout",		120,	&var_cfg_io_timeout, 0, 0 },
 	{ "dns_gate_port",	53,	&var_cfg_dns_gate_port, 1, 65535 },
 	{ "resolver_search_order", 1, &var_cfg_resolver_search_order, 0, 1000000 },
+	{ "dns_gate_http_timeout", 8, &var_cfg_dns_gate_http_timeout, 1, 300 },
 
 	{ 0, 0 , 0 , 0, 0 }
 };

@@ -4,6 +4,7 @@
 // 配置内容项
 
 extern char *var_cfg_upstream_addr;
+extern char *var_cfg_http_addr;
 extern acl::master_str_tbl var_conf_str_tab[];
 
 extern acl::master_bool_tbl var_conf_bool_tab[];
