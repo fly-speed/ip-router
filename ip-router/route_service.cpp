@@ -1,4 +1,5 @@
 #include "stdafx.h"
+#include "domain_manager.h"
 #include "http_service.h"
 #include "route_manager.h"
 #include "route_service.h"
@@ -327,6 +328,126 @@ bool health(HttpRequest&, HttpResponse& response)
 	return reply_json(response, 200, true, "ok");
 }
 
+bool collect_domains(HttpRequest& request, std::vector<acl::string>& domains,
+	acl::string& error)
+{
+	const char* values = parameter(request, "domains", "domain");
+	if (values == NULL || *values == 0) {
+		error = "parameter 'domains' is required";
+		return false;
+	}
+	acl::string buffer(values);
+	const std::vector<acl::string>& tokens = buffer.split2(",; \t\r\n");
+	if (tokens.empty() || tokens.size() > 4096) {
+		error = "parameter 'domains' must contain between 1 and 4096 domains";
+		return false;
+	}
+	std::set<acl::string> unique;
+	for (std::vector<acl::string>::const_iterator it = tokens.begin();
+		it != tokens.end(); ++it) {
+		acl::string normalized;
+		if (!domain_manager::valid_domain(it->c_str(), normalized, error)) {
+			return false;
+		}
+		if (unique.insert(normalized).second) {
+			domains.push_back(normalized);
+		}
+	}
+	return true;
+}
+
+bool domain_change(HttpRequest& request, HttpResponse& response, bool add)
+{
+	std::vector<acl::string> domains;
+	acl::string validation_error;
+	if (!collect_domains(request, domains, validation_error)) {
+		return reply_json(response, 400, false, validation_error.c_str());
+	}
+
+	acl::json json;
+	acl::json_node& root = json.get_root();
+	acl::json_node& results = json.create_node(true);
+	size_t succeeded = 0;
+	for (std::vector<acl::string>::const_iterator it = domains.begin();
+		it != domains.end(); ++it) {
+		acl::string error;
+		bool success = add ? domain_manager::add(it->c_str(), error)
+			: domain_manager::remove(it->c_str(), error);
+		results.add_child(json.create_node()
+			.add_text("domain", it->c_str())
+			.add_bool("success", success)
+			.add_text("message", success
+				? (add ? "domain added" : "domain deleted") : error.c_str()));
+		if (success) {
+			++succeeded;
+			logger("resolver domain %s succeeded, domain=%s",
+				add ? "add" : "delete", it->c_str());
+		} else {
+			logger_error("resolver domain %s failed, domain=%s, error=%s",
+				add ? "add" : "delete", it->c_str(), error.c_str());
+		}
+	}
+
+	bool all_succeeded = succeeded == domains.size();
+	bool system_refreshed = true;
+	acl::string refresh_error;
+	if (succeeded > 0
+		&& !domain_manager::refresh_system(refresh_error)) {
+		system_refreshed = false;
+		logger_error("refresh system DNS after resolver domain %s failed, "
+			"error=%s", add ? "add" : "delete", refresh_error.c_str());
+	}
+	response.setStatus(all_succeeded ? 200 : (succeeded == 0 ? 500 : 207));
+	response.setContentType("application/json; charset=utf-8");
+	root.add_bool("success", all_succeeded)
+		.add_text("message", all_succeeded
+			? (add ? "all domains added" : "all domains deleted")
+			: "one or more domains failed")
+		.add_number("count", static_cast<long long>(domains.size()))
+		.add_number("succeeded", static_cast<long long>(succeeded))
+		.add_bool("system_refreshed", system_refreshed)
+		.add_child("domains", results);
+	if (!system_refreshed) {
+		root.add_text("refresh_error", refresh_error.c_str());
+	}
+	return response.write(json);
+}
+
+bool domain_add(HttpRequest& request, HttpResponse& response)
+{
+	return domain_change(request, response, true);
+}
+
+bool domain_delete(HttpRequest& request, HttpResponse& response)
+{
+	return domain_change(request, response, false);
+}
+
+bool domain_list(HttpRequest&, HttpResponse& response)
+{
+	std::vector<domain_entry> domains;
+	acl::string error;
+	if (!domain_manager::list(domains, error)) {
+		logger_error("list resolver domains failed, error=%s", error.c_str());
+		return reply_json(response, 500, false, error.c_str());
+	}
+	response.setStatus(200);
+	response.setContentType("application/json; charset=utf-8");
+	acl::json json;
+	acl::json_node& root = json.get_root();
+	acl::json_node& items = json.create_node(true);
+	for (std::vector<domain_entry>::const_iterator it = domains.begin();
+		it != domains.end(); ++it) {
+		items.add_child(json.create_node()
+			.add_text("domain", it->domain.c_str())
+			.add_number("created_at", it->created_at));
+	}
+	root.add_bool("success", true)
+		.add_number("count", static_cast<long long>(domains.size()))
+		.add_child("domains", items);
+	return response.write(json);
+}
+
 bool load_html_template(std::string& content)
 {
 	std::ifstream input("html/index.html", std::ios::in | std::ios::binary);
@@ -447,9 +568,12 @@ void register_route_service(http_service& service)
 {
 	service.Get("/", route_page)
 		.Get("/health", health)
+		.Get("/domains", domain_list)
 		.Get("/routes", route_list)
 		.Get("/system-routes", system_route_list)
 		.Post("/route", route_add)
+		.Post("/domain", domain_add)
 		.Delete("/route", route_delete)
+		.Delete("/domain", domain_delete)
 		.Delete("/system-route", system_route_delete);
 }

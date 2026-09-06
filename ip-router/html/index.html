@@ -43,7 +43,7 @@
       gap: 13px;
     }
     label { display: grid; gap: 6px; color: #475467; font-size: 13px; }
-    input, select {
+    input, select, textarea {
       min-width: 0;
       padding: 9px 11px;
       color: #182230;
@@ -51,8 +51,19 @@
       border: 1px solid #d0d5dd;
       border-radius: 7px;
       outline: none;
+      font: inherit;
     }
-    input:focus, select:focus { border-color: #84adff; box-shadow: 0 0 0 3px #d1e0ff; }
+    textarea { resize: vertical; }
+    input:focus, select:focus, textarea:focus { border-color: #84adff; box-shadow: 0 0 0 3px #d1e0ff; }
+    input[type="checkbox"] {
+      width: 16px;
+      height: 16px;
+      min-width: 16px;
+      margin: 0;
+      padding: 0;
+      accent-color: #175cd3;
+      box-shadow: none;
+    }
     .form-actions { display: flex; align-items: end; }
     button {
       padding: 9px 15px;
@@ -113,6 +124,41 @@
     .sort-button:hover { color: #175cd3; background: transparent; }
     .sort-button:focus-visible { outline: 2px solid #84adff; outline-offset: 3px; }
     .sort-indicator { min-width: 12px; color: #667085; }
+    .key-toggle {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 0;
+      color: #175cd3;
+      font: inherit;
+      background: transparent;
+    }
+    .key-toggle:hover { color: #1849a9; background: transparent; }
+    .key-toggle:focus-visible { outline: 2px solid #84adff; outline-offset: 3px; }
+    .key-toggle .chevron {
+      width: 14px;
+      color: #667085;
+      text-align: center;
+    }
+    .route-group-row { background: #fcfcfd; }
+    .route-group-row td { font-weight: 600; }
+    .route-child-row td:first-child { color: #667085; }
+    .route-child-key { padding-left: 26px; white-space: nowrap; }
+    .route-child-row td { background: #fff; }
+    .route-count { color: #475467; font-weight: 400; }
+    .route-key-layout { display: flex; align-items: center; gap: 10px; }
+    .route-key-layout .key-toggle { flex: 1; }
+    .configured-badge {
+      display: inline-block;
+      padding: 2px 7px;
+      color: #027a48;
+      font-size: 11px;
+      font-weight: 600;
+      white-space: nowrap;
+      background: #ecfdf3;
+      border-radius: 999px;
+    }
+    .list-actions { display: flex; align-items: center; gap: 8px; }
     td { font-size: 14px; }
     tr:last-child td { border-bottom: 0; }
     code { color: #175cd3; }
@@ -145,6 +191,8 @@
       header { align-items: start; }
       .controls { grid-template-columns: 1fr; }
       .form-grid { grid-template-columns: 1fr; }
+      .list-heading { align-items: start; flex-direction: column; }
+      .list-actions { align-items: start; flex-direction: column; }
       .pagination { align-items: stretch; flex-direction: column; }
       .page-buttons { justify-content: space-between; }
     }
@@ -159,6 +207,7 @@
       </div>
       <div class="actions">
         <a id="refresh" href="/">刷新</a>
+        <a href="/domains">域名 JSON</a>
         <a href="/routes">查看 JSON</a>
         <a href="/system-routes">系统 JSON</a>
       </div>
@@ -206,8 +255,72 @@
     <div id="notice" class="notice" role="status" aria-live="polite"></div>
     <section class="list-section">
       <div class="list-heading">
+        <div>
+          <h2>指定域名 DNS 分流</h2>
+          <p>这些域名及其子域名由 dns-gate 解析，其余域名仍使用 VPN DNS</p>
+        </div>
+      </div>
+      <div class="card panel">
+        <form id="domain-add-form" class="form-grid">
+          <label style="grid-column: 1 / -1">
+            批量添加域名
+            <textarea name="domains" rows="5" required
+              placeholder="每行一个域名，也可以使用逗号、分号或空格分隔&#10;例如：&#10;webcool.cn&#10;example.com"></textarea>
+          </label>
+          <p class="hint">填写父域名即可覆盖它的全部子域名；最多一次添加 4096 个域名。</p>
+          <div class="form-actions"><button type="submit">添加域名</button></div>
+        </form>
+      </div>
+      <div class="card table-card" style="margin-top: 12px">
+        <div class="table-scroll">
+          <table>
+            <thead>
+              <tr>
+                <th id="domain-sort-header" aria-sort="ascending">
+                  <button id="domain-sort" class="sort-button" type="button">
+                    域名 <span id="domain-sort-indicator" class="sort-indicator">▲</span>
+                  </button>
+                </th>
+                <th>匹配范围</th>
+                <th id="created-sort-header" aria-sort="none">
+                  <button id="created-sort" class="sort-button" type="button">
+                    添加时间 <span id="created-sort-indicator" class="sort-indicator">↕</span>
+                  </button>
+                </th>
+                <th>操作</th>
+              </tr>
+            </thead>
+            <tbody id="domain-rows">
+              <tr><td class="empty" colspan="4">正在加载…</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <div class="pagination">
+          <label class="page-size">每页
+            <select id="domain-page-size" aria-label="域名每页数量">
+              <option value="10">10</option>
+              <option value="20">20</option>
+              <option value="50" selected>50</option>
+              <option value="100">100</option>
+            </select>条
+          </label>
+          <div class="page-buttons">
+            <button id="domain-prev" type="button">上一页</button>
+            <span id="domain-page-info">第 1 / 1 页</span>
+            <button id="domain-next" type="button">下一页</button>
+          </div>
+        </div>
+      </div>
+    </section>
+    <section class="list-section">
+      <div class="list-heading">
         <h2>服务内存路由</h2>
-        <p>包含 KEY、TTL 等服务管理信息</p>
+        <div class="list-actions">
+          <p>按根域名合并，展开后显示原始 KEY</p>
+          <button id="add-selected-domains" class="small" type="button" disabled>
+            添加选中域名至系统 DNS
+          </button>
+        </div>
       </div>
       <div class="card table-card">
         <div class="table-scroll">
@@ -215,9 +328,12 @@
             <thead>
               <tr>
                 <th id="key-sort-header" aria-sort="ascending">
-                  <button id="key-sort" class="sort-button" type="button">
-                    KEY <span id="key-sort-indicator" class="sort-indicator">▲</span>
-                  </button>
+                  <span class="route-key-layout">
+                    <input id="route-select-all" type="checkbox" aria-label="选择全部未配置的根域名">
+                    <button id="key-sort" class="sort-button" type="button">
+                      根域名 <span id="key-sort-indicator" class="sort-indicator">▲</span>
+                    </button>
+                  </span>
                 </th>
                 <th>目标 IP</th>
                 <th>网关</th>
@@ -242,7 +358,7 @@
               <option value="20">20</option>
               <option value="50" selected>50</option>
               <option value="100">100</option>
-            </select>条
+            </select>个 KEY
           </label>
           <div class="page-buttons">
             <button id="route-prev" type="button">上一页</button>
@@ -296,18 +412,35 @@
     const rows = document.getElementById("route-rows");
     const systemSummary = document.getElementById("system-summary");
     const systemRows = document.getElementById("system-route-rows");
+    const domainRows = document.getElementById("domain-rows");
     const notice = document.getElementById("notice");
+    const domainPager = {
+      page: 1,
+      pageSize: 50,
+      items: [],
+      sortField: "domain",
+      sortDirection: "asc",
+      pageSizeElement: document.getElementById("domain-page-size"),
+      previous: document.getElementById("domain-prev"),
+      next: document.getElementById("domain-next"),
+      info: document.getElementById("domain-page-info")
+    };
     const routePager = {
       page: 1,
       pageSize: 50,
       items: [],
       sortField: "key",
       sortDirection: "asc",
+      expandedKeys: new Set(),
+      selectedDomains: new Set(),
+      unit: "个 KEY",
       pageSizeElement: document.getElementById("route-page-size"),
       previous: document.getElementById("route-prev"),
       next: document.getElementById("route-next"),
       info: document.getElementById("route-page-info")
     };
+    const routeSelectAll = document.getElementById("route-select-all");
+    const addSelectedDomains = document.getElementById("add-selected-domains");
     const systemPager = {
       page: 1,
       pageSize: 50,
@@ -343,6 +476,14 @@
       systemRows.appendChild(row);
     }
 
+    function showDomainMessage(message) {
+      domainRows.replaceChildren();
+      const row = document.createElement("tr");
+      addCell(row, message, "empty");
+      row.firstChild.colSpan = 4;
+      domainRows.appendChild(row);
+    }
+
     function showNotice(message, type) {
       notice.textContent = message;
       notice.className = `notice ${type}`;
@@ -363,6 +504,49 @@
       return data;
     }
 
+    async function domainRequest(method, domains) {
+      const parameters = new URLSearchParams({ domains });
+      const options = { method };
+      let url = "/domain";
+      if (method === "POST") {
+        options.headers = { "Content-Type": "application/x-www-form-urlencoded;charset=UTF-8" };
+        options.body = parameters;
+      } else {
+        url += `?${parameters}`;
+      }
+      const response = await fetch(url, options);
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(data.message || `HTTP ${response.status}`);
+      return data;
+    }
+
+    function addDomainDeleteButton(row, domain) {
+      const cell = document.createElement("td");
+      const button = document.createElement("button");
+      button.type = "button";
+      button.className = "danger small";
+      button.textContent = "删除";
+      button.addEventListener("click", async () => {
+        if (!window.confirm(`确定删除域名 ${domain} 的 DNS 分流配置吗？`)) return;
+        button.disabled = true;
+        try {
+          const data = await domainRequest("DELETE", domain);
+          showNotice(data.system_refreshed === false
+            ? `域名已删除，但系统 DNS 刷新失败：${data.refresh_error || "未知错误"}`
+            : (data.message || "域名已删除"),
+          data.system_refreshed === false ? "warning" : "success");
+          await loadDomains();
+          await loadRoutes();
+        } catch (error) {
+          showNotice(`域名删除失败：${error.message}`, "error");
+        } finally {
+          button.disabled = false;
+        }
+      });
+      cell.appendChild(button);
+      row.appendChild(cell);
+    }
+
     function addDeleteButton(row, key, ip) {
       const cell = document.createElement("td");
       const button = document.createElement("button");
@@ -381,6 +565,51 @@
         } finally {
           button.disabled = false;
         }
+      });
+      cell.appendChild(button);
+      row.appendChild(cell);
+    }
+
+    function addGroupDeleteButton(row, group) {
+      const cell = document.createElement("td");
+      const button = document.createElement("button");
+      button.type = "button";
+      button.className = "danger small";
+      button.textContent = "删除全部";
+      button.addEventListener("click", async () => {
+        if (!window.confirm(`确定删除 ${group.key} 分组下的全部 ${group.targets.length} 条路由吗？`)) return;
+        button.disabled = true;
+        const uniqueTargets = [];
+        const seen = new Set();
+        group.targets.forEach((target) => {
+          const identity = `${target.ip || ""}\n${target.gateway || ""}`;
+          if (!seen.has(identity)) {
+            seen.add(identity);
+            uniqueTargets.push(target);
+          }
+        });
+        let succeeded = 0;
+        const errors = [];
+        for (const target of uniqueTargets) {
+          try {
+            await routeRequest("DELETE", {
+              key: target.sourceKey,
+              ip: target.ip || ""
+            });
+            succeeded += 1;
+          } catch (error) {
+            errors.push(error.message);
+          }
+        }
+        routePager.expandedKeys.delete(group.key);
+        showNotice(
+          errors.length === 0
+            ? `删除完成：成功 ${succeeded}/${uniqueTargets.length} 条`
+            : `删除完成：成功 ${succeeded}/${uniqueTargets.length} 条；${errors[0]}`,
+          errors.length === 0 ? "success" : succeeded > 0 ? "warning" : "error"
+        );
+        await loadAllRoutes();
+        button.disabled = false;
       });
       cell.appendChild(button);
       row.appendChild(cell);
@@ -412,7 +641,7 @@
     function updatePager(pager) {
       const pageCount = Math.max(1, Math.ceil(pager.items.length / pager.pageSize));
       pager.page = Math.min(Math.max(1, pager.page), pageCount);
-      pager.info.textContent = `第 ${pager.page} / ${pageCount} 页，共 ${pager.items.length} 条`;
+      pager.info.textContent = `第 ${pager.page} / ${pageCount} 页，共 ${pager.items.length} ${pager.unit || "条"}`;
       pager.previous.disabled = pager.page <= 1;
       pager.next.disabled = pager.page >= pageCount;
     }
@@ -423,6 +652,73 @@
       return pager.items.slice(start, start + pager.pageSize);
     }
 
+    function compareDomainItems(left, right) {
+      let result = domainPager.sortField === "created"
+        ? Number(left.created_at || 0) - Number(right.created_at || 0)
+        : compareText(left.domain || "", right.domain || "");
+      if (result === 0) result = compareText(left.domain || "", right.domain || "");
+      return domainPager.sortDirection === "asc" ? result : -result;
+    }
+
+    function updateDomainSortHeaders() {
+      ["domain", "created"].forEach((field) => {
+        const active = domainPager.sortField === field;
+        const direction = active ? domainPager.sortDirection : "none";
+        document.getElementById(`${field}-sort-header`).setAttribute(
+          "aria-sort",
+          direction === "asc" ? "ascending" : direction === "desc" ? "descending" : "none"
+        );
+        document.getElementById(`${field}-sort-indicator`).textContent = !active
+          ? "↕" : domainPager.sortDirection === "asc" ? "▲" : "▼";
+      });
+    }
+
+    function changeDomainSort(field) {
+      if (domainPager.sortField === field) {
+        domainPager.sortDirection = domainPager.sortDirection === "asc" ? "desc" : "asc";
+      } else {
+        domainPager.sortField = field;
+        domainPager.sortDirection = "asc";
+      }
+      domainPager.page = 1;
+      updateDomainSortHeaders();
+      renderDomainPage();
+    }
+
+    function renderDomainPage() {
+      domainRows.replaceChildren();
+      if (domainPager.items.length === 0) {
+        updatePager(domainPager);
+        showDomainMessage("尚未添加 DNS 分流域名");
+        return;
+      }
+      updatePager(domainPager);
+      const start = (domainPager.page - 1) * domainPager.pageSize;
+      domainPager.items.slice().sort(compareDomainItems)
+        .slice(start, start + domainPager.pageSize).forEach((item) => {
+          const row = document.createElement("tr");
+          addCell(row, item.domain || "", "", true);
+          addCell(row, `${item.domain} 及其全部子域名`);
+          const timestamp = Number(item.created_at || 0);
+          addCell(row, timestamp > 0
+            ? new Date(timestamp * 1000).toLocaleString() : "—");
+          addDomainDeleteButton(row, item.domain || "");
+          domainRows.appendChild(row);
+        });
+    }
+
+    async function loadDomains() {
+      try {
+        const response = await fetch("/domains", { cache: "no-store" });
+        const data = await response.json().catch(() => ({}));
+        if (!response.ok) throw new Error(data.message || `HTTP ${response.status}`);
+        domainPager.items = Array.isArray(data.domains) ? data.domains : [];
+        renderDomainPage();
+      } catch (error) {
+        showDomainMessage(`域名列表加载失败：${error.message}`);
+      }
+    }
+
     function compareText(left, right) {
       return String(left).localeCompare(String(right), "zh-CN", {
         numeric: true,
@@ -430,21 +726,80 @@
       });
     }
 
+    function formatTimestamp(timestamp) {
+      const date = new Date(Number(timestamp) * 1000);
+      const pad = (value) => String(value).padStart(2, "0");
+      return `${date.getFullYear()}/${date.getMonth() + 1}/${date.getDate()} `
+        + `${pad(date.getHours())}:${pad(date.getMinutes())}:${pad(date.getSeconds())}`;
+    }
+
+    const commonCompoundSuffixes = new Set([
+      "ac.cn", "com.cn", "edu.cn", "gov.cn", "mil.cn", "net.cn", "org.cn",
+      "ac.uk", "co.uk", "gov.uk", "me.uk", "org.uk",
+      "asn.au", "com.au", "edu.au", "gov.au", "net.au", "org.au",
+      "ac.jp", "co.jp", "go.jp", "ne.jp", "or.jp",
+      "co.kr", "ne.kr", "or.kr", "com.hk", "edu.hk", "gov.hk", "net.hk", "org.hk",
+      "com.tw", "edu.tw", "gov.tw", "net.tw", "org.tw",
+      "ac.nz", "co.nz", "govt.nz", "net.nz", "org.nz",
+      "com.sg", "net.sg", "org.sg", "com.br", "com.mx",
+      "co.in", "firm.in", "gen.in", "ind.in", "net.in", "org.in", "co.za"
+    ]);
+
+    function rootDomainForKey(key) {
+      const normalized = String(key || "").toLowerCase().replace(/\.+$/, "");
+      const labels = normalized.split(".");
+      if (labels.length < 2 || labels.some((label) =>
+        !/^[a-z0-9](?:[a-z0-9-]*[a-z0-9])?$/.test(label))) {
+        return null;
+      }
+      const lastTwo = labels.slice(-2).join(".");
+      if (labels.length >= 3 && commonCompoundSuffixes.has(lastTwo)) {
+        return labels.slice(-3).join(".");
+      }
+      return lastTwo;
+    }
+
+    function configuredResolverDomains() {
+      return new Set(domainPager.items.map((item) =>
+        String(item.domain || "").toLowerCase()
+      ));
+    }
+
+    function updateRouteSelection() {
+      const configured = configuredResolverDomains();
+      const selectable = routePager.items.filter((group) =>
+        group.rootDomain && !configured.has(group.rootDomain)
+      ).map((group) => group.rootDomain);
+      const selectedCount = selectable.filter((domain) =>
+        routePager.selectedDomains.has(domain)
+      ).length;
+      routeSelectAll.checked = selectable.length > 0 && selectedCount === selectable.length;
+      routeSelectAll.indeterminate = selectedCount > 0 && selectedCount < selectable.length;
+      routeSelectAll.disabled = selectable.length === 0;
+      addSelectedDomains.disabled = selectedCount === 0;
+      addSelectedDomains.textContent = selectedCount > 0
+        ? `添加选中的 ${selectedCount} 个根域名至系统 DNS`
+        : "添加选中域名至系统 DNS";
+    }
+
     function compareRouteItems(left, right) {
       let result = 0;
       if (routePager.sortField === "expiration") {
-        const leftExpiration = Number(left.target.expires_at) > 0
-          ? Number(left.target.expires_at) : Number.POSITIVE_INFINITY;
-        const rightExpiration = Number(right.target.expires_at) > 0
-          ? Number(right.target.expires_at) : Number.POSITIVE_INFINITY;
+        const leftExpiration = groupExpiration(left);
+        const rightExpiration = groupExpiration(right);
         if (leftExpiration < rightExpiration) result = -1;
         if (leftExpiration > rightExpiration) result = 1;
       } else {
         result = compareText(left.key, right.key);
       }
       if (result === 0) result = compareText(left.key, right.key);
-      if (result === 0) result = compareText(left.target.ip || "", right.target.ip || "");
       return routePager.sortDirection === "asc" ? result : -result;
+    }
+
+    function groupExpiration(group) {
+      const expirations = group.targets.map((target) => Number(target.expires_at))
+        .filter((value) => value > 0);
+      return expirations.length > 0 ? Math.min(...expirations) : Number.POSITIVE_INFINITY;
     }
 
     function currentRoutePageItems() {
@@ -484,36 +839,159 @@
       if (routePager.items.length === 0) {
         updatePager(routePager);
         showMessage("尚未设置路由");
+        updateRouteSelection();
         return;
       }
 
       const now = Math.floor(Date.now() / 1000);
-      currentRoutePageItems().forEach(({ key, target }) => {
-        const row = document.createElement("tr");
-        addCell(row, key, "", true);
-        addCell(row, target.ip || "");
-        addCell(row, target.gateway || "");
-        if (target.expires_at > 0) {
-          const remaining = Math.max(0, target.expires_at - now);
-          addCell(row, `${target.ttl} 秒（剩余 ${remaining} 秒）`, "expiring");
-          addCell(row, String(target.expires_at));
-        } else {
-          addCell(row, "永久", "permanent");
-          addCell(row, "—");
+      currentRoutePageItems().forEach((group) => {
+        if (!group.rootDomain && group.targets.length === 1) {
+          const target = group.targets[0];
+          const row = document.createElement("tr");
+          addCell(row, group.key, "", true);
+          addCell(row, target.ip || "");
+          addCell(row, target.gateway || "");
+          if (target.expires_at > 0) {
+            const remaining = Math.max(0, target.expires_at - now);
+            addCell(row, `${target.ttl} 秒（剩余 ${remaining} 秒）`, "expiring");
+            addCell(row, formatTimestamp(target.expires_at));
+          } else {
+            addCell(row, "永久", "permanent");
+            addCell(row, "—");
+          }
+          addDeleteButton(row, group.key, target.ip || "");
+          rows.appendChild(row);
+          return;
         }
-        addDeleteButton(row, key, target.ip || "");
-        rows.appendChild(row);
+
+        const expanded = routePager.expandedKeys.has(group.key);
+        const gateways = [...new Set(group.targets.map((target) => target.gateway || ""))];
+        const expiration = groupExpiration(group);
+        const groupRow = document.createElement("tr");
+        groupRow.className = "route-group-row";
+
+        const keyCell = document.createElement("td");
+        const keyLayout = document.createElement("div");
+        keyLayout.className = "route-key-layout";
+        if (group.rootDomain) {
+          const checkbox = document.createElement("input");
+          checkbox.type = "checkbox";
+          checkbox.checked = routePager.selectedDomains.has(group.rootDomain);
+          checkbox.disabled = group.configured;
+          checkbox.setAttribute("aria-label", group.configured
+            ? `${group.rootDomain} 已配置到系统 DNS`
+            : `选择根域名 ${group.rootDomain}`);
+          checkbox.addEventListener("change", () => {
+            if (checkbox.checked) {
+              routePager.selectedDomains.add(group.rootDomain);
+            } else {
+              routePager.selectedDomains.delete(group.rootDomain);
+            }
+            updateRouteSelection();
+          });
+          keyLayout.appendChild(checkbox);
+        }
+        const toggle = document.createElement("button");
+        toggle.type = "button";
+        toggle.className = "key-toggle";
+        toggle.setAttribute("aria-expanded", String(expanded));
+        toggle.setAttribute("aria-label", `${expanded ? "折叠" : "展开"} ${group.key}`);
+        const chevron = document.createElement("span");
+        chevron.className = "chevron";
+        chevron.textContent = expanded ? "▼" : "▶";
+        const keyCode = document.createElement("code");
+        keyCode.textContent = group.key;
+        toggle.append(chevron, keyCode);
+        toggle.addEventListener("click", () => {
+          if (routePager.expandedKeys.has(group.key)) {
+            routePager.expandedKeys.delete(group.key);
+          } else {
+            routePager.expandedKeys.add(group.key);
+          }
+          renderRoutePage();
+        });
+        keyLayout.appendChild(toggle);
+        if (group.configured) {
+          const badge = document.createElement("span");
+          badge.className = "configured-badge";
+          badge.textContent = "已配置";
+          keyLayout.appendChild(badge);
+        }
+        keyCell.appendChild(keyLayout);
+        groupRow.appendChild(keyCell);
+        addCell(groupRow, `${group.targets.length} 个 IP`, "route-count");
+        addCell(groupRow, gateways.length === 1 ? gateways[0] : `${gateways.length} 个网关`);
+        addCell(groupRow, "点击展开查看", "route-count");
+        if (Number.isFinite(expiration)) {
+          addCell(groupRow, `最早 ${formatTimestamp(expiration)}`, "expiring");
+        } else {
+          addCell(groupRow, "全部永久", "permanent");
+        }
+        addGroupDeleteButton(groupRow, group);
+        rows.appendChild(groupRow);
+
+        if (!expanded) return;
+        group.targets.forEach((target) => {
+          const childRow = document.createElement("tr");
+          childRow.className = "route-child-row";
+          addCell(childRow, `↳ ${target.sourceKey}`, "route-child-key", true);
+          addCell(childRow, target.ip || "");
+          addCell(childRow, target.gateway || "");
+          if (target.expires_at > 0) {
+            const remaining = Math.max(0, target.expires_at - now);
+            addCell(childRow, `${target.ttl} 秒（剩余 ${remaining} 秒）`, "expiring");
+            addCell(childRow, formatTimestamp(target.expires_at));
+          } else {
+            addCell(childRow, "永久", "permanent");
+            addCell(childRow, "—");
+          }
+          addDeleteButton(childRow, target.sourceKey, target.ip || "");
+          rows.appendChild(childRow);
+        });
       });
+      updateRouteSelection();
     }
 
     function renderRoutes(groups) {
-      routePager.items = [];
-      groups.forEach((group) => {
-        (group.ips || []).forEach((target) => {
-          routePager.items.push({ key: group.key || "", target });
+      const configured = configuredResolverDomains();
+      const groupedRoutes = new Map();
+      groups.forEach((sourceGroup) => {
+        const sourceKey = String(sourceGroup.key || "");
+        const rootDomain = rootDomainForKey(sourceKey);
+        const groupKey = rootDomain || sourceKey;
+        if (!groupedRoutes.has(groupKey)) {
+          groupedRoutes.set(groupKey, {
+            key: groupKey,
+            rootDomain,
+            configured: rootDomain ? configured.has(rootDomain) : false,
+            sourceKeys: [],
+            targets: []
+          });
+        }
+        const routeGroup = groupedRoutes.get(groupKey);
+        if (!routeGroup.sourceKeys.includes(sourceKey)) {
+          routeGroup.sourceKeys.push(sourceKey);
+        }
+        (Array.isArray(sourceGroup.ips) ? sourceGroup.ips : []).forEach((target) => {
+          routeGroup.targets.push({ ...target, sourceKey });
         });
       });
-      summary.textContent = `共 ${groups.length} 个 KEY，${routePager.items.length} 条路由`;
+      routePager.items = Array.from(groupedRoutes.values())
+        .filter((group) => group.targets.length > 0);
+      const activeDomains = new Set(routePager.items
+        .map((group) => group.rootDomain).filter(Boolean));
+      routePager.selectedDomains.forEach((domain) => {
+        if (!activeDomains.has(domain) || configured.has(domain)) {
+          routePager.selectedDomains.delete(domain);
+        }
+      });
+      const activeKeys = new Set(routePager.items.map((group) => group.key));
+      routePager.expandedKeys.forEach((key) => {
+        if (!activeKeys.has(key)) routePager.expandedKeys.delete(key);
+      });
+      const routeCount = routePager.items.reduce(
+        (count, group) => count + group.targets.length, 0);
+      summary.textContent = `共 ${routePager.items.length} 个根域名/KEY，${routeCount} 条路由`;
       renderRoutePage();
     }
 
@@ -581,6 +1059,7 @@
     }
 
     async function loadAllRoutes() {
+      await loadDomains();
       await Promise.all([loadRoutes(), loadSystemRoutes()]);
     }
 
@@ -603,6 +1082,29 @@
         await loadAllRoutes();
       } catch (error) {
         showNotice(`添加失败：${error.message}`, "error");
+      } finally {
+        button.disabled = false;
+      }
+    });
+
+    document.getElementById("domain-add-form").addEventListener("submit", async (event) => {
+      event.preventDefault();
+      const form = event.currentTarget;
+      const button = form.querySelector("button[type=submit]");
+      const domains = new FormData(form).get("domains");
+      button.disabled = true;
+      try {
+        const data = await domainRequest("POST", domains);
+        const refreshed = data.system_refreshed !== false;
+        showNotice(`域名添加完成：成功 ${data.succeeded}/${data.count} 个`
+          + (refreshed ? "，系统 DNS 已刷新"
+            : `，但系统 DNS 刷新失败：${data.refresh_error || "未知错误"}`),
+          data.success && refreshed ? "success" : "warning");
+        form.reset();
+        await loadDomains();
+        await loadRoutes();
+      } catch (error) {
+        showNotice(`域名添加失败：${error.message}`, "error");
       } finally {
         button.disabled = false;
       }
@@ -632,6 +1134,45 @@
     });
     bindPagination(routePager, renderRoutePage);
     bindPagination(systemPager, renderSystemRoutePage);
+    bindPagination(domainPager, renderDomainPage);
+    routeSelectAll.addEventListener("change", () => {
+      const configured = configuredResolverDomains();
+      routePager.items.forEach((group) => {
+        if (!group.rootDomain || configured.has(group.rootDomain)) return;
+        if (routeSelectAll.checked) {
+          routePager.selectedDomains.add(group.rootDomain);
+        } else {
+          routePager.selectedDomains.delete(group.rootDomain);
+        }
+      });
+      renderRoutePage();
+    });
+    addSelectedDomains.addEventListener("click", async () => {
+      const domains = Array.from(routePager.selectedDomains).sort(compareText);
+      if (domains.length === 0) return;
+      if (!window.confirm(`确定将选中的 ${domains.length} 个根域名添加至系统 DNS 吗？`)) return;
+      addSelectedDomains.disabled = true;
+      try {
+        const data = await domainRequest("POST", domains.join("\n"));
+        routePager.selectedDomains.clear();
+        const refreshed = data.system_refreshed !== false;
+        showNotice(`系统 DNS 配置完成：成功 ${data.succeeded}/${data.count} 个`
+          + (refreshed ? "，已自动生效"
+            : `，但刷新失败：${data.refresh_error || "未知错误"}`),
+          data.success && refreshed ? "success" : "warning");
+      } catch (error) {
+        showNotice(`系统 DNS 配置失败：${error.message}`, "error");
+      }
+      await loadDomains();
+      await loadRoutes();
+      updateRouteSelection();
+    });
+    document.getElementById("domain-sort").addEventListener("click", () => {
+      changeDomainSort("domain");
+    });
+    document.getElementById("created-sort").addEventListener("click", () => {
+      changeDomainSort("created");
+    });
     document.getElementById("key-sort").addEventListener("click", () => {
       changeRouteSort("key");
     });
@@ -639,6 +1180,7 @@
       changeRouteSort("expiration");
     });
     updateRouteSortHeaders();
+    updateDomainSortHeaders();
     loadAllRoutes();
   </script>
 </body>

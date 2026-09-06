@@ -94,6 +94,12 @@ service ip-router
 #	路由持久化文件路径；留空时默认为当前运行目录下的 routes.db
 #	可填写绝对路径，或相对于程序当前运行目录的路径
 	routes_file = routes.db
+#	macOS 指定域名 DNS 分流配置目录
+	resolver_dir = /etc/resolver
+#	由上述域名使用的 dns-gate 地址、端口及 resolver 优先级
+	dns_gate_nameserver = 127.0.0.1
+	dns_gate_port = 53
+	resolver_search_order = 1
 #	读写超时时间, 单位为秒
 	fiber_rw_timeout = 120
 #	读缓冲区的缓冲区大小

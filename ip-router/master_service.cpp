@@ -2,6 +2,7 @@
 #include "http_service.h"
 #include "http_servlet.h"
 #include "master_service.h"
+#include "domain_manager.h"
 #include "route_manager.h"
 
 char *var_cfg_libcrypto_path;	// For OpenSSL, MbedTLS
@@ -11,6 +12,8 @@ char *var_cfg_crt_file;		// For OpenSSL, MbedTLS, and PolarSSL
 char *var_cfg_key_file;		// For OpenSSL, MbedTLS, and PolarSSL
 char *var_cfg_key_pass;		// For OpenSSL, MbedTLS, and PolarSSL
 char *var_cfg_routes_file;	// Route persistence file
+char *var_cfg_resolver_dir;	// macOS split DNS resolver directory
+char *var_cfg_dns_gate_nameserver; // dns-gate address used by resolver files
 
 acl::master_str_tbl var_conf_str_tab[] = {
 	{ "libcrypto_path",	"",	&var_cfg_libcrypto_path	},
@@ -20,6 +23,8 @@ acl::master_str_tbl var_conf_str_tab[] = {
 	{ "key_file",		"",	&var_cfg_key_file	},
 	{ "key_pass",		"",	&var_cfg_key_pass	},
 	{ "routes_file",	"routes.db", &var_cfg_routes_file	},
+	{ "resolver_dir",	"/etc/resolver", &var_cfg_resolver_dir	},
+	{ "dns_gate_nameserver", "127.0.0.1", &var_cfg_dns_gate_nameserver },
 
 	{ 0, 0, 0 }
 };
@@ -33,9 +38,13 @@ acl::master_bool_tbl var_conf_bool_tab[] = {
 };
 
 static int  var_cfg_io_timeout;
+static int  var_cfg_dns_gate_port;
+static int  var_cfg_resolver_search_order;
 
 acl::master_int_tbl var_conf_int_tab[] = {
 	{ "io_timeout",		120,	&var_cfg_io_timeout, 0, 0 },
+	{ "dns_gate_port",	53,	&var_cfg_dns_gate_port, 1, 65535 },
+	{ "resolver_search_order", 1, &var_cfg_resolver_search_order, 0, 1000000 },
 
 	{ 0, 0 , 0 , 0, 0 }
 };
@@ -133,6 +142,8 @@ void master_service::proc_on_listen(acl::server_socket& ss)
 void master_service::proc_on_init(void)
 {
 	logger(">>>proc_on_init<<<");
+	domain_manager::configure(var_cfg_resolver_dir, var_cfg_dns_gate_nameserver,
+		var_cfg_dns_gate_port, var_cfg_resolver_search_order);
 	route_manager::set_storage_path(var_cfg_routes_file);
 	route_manager::start();
 

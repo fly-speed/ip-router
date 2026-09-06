@@ -18,7 +18,10 @@ ip router，快捷访问网络。
 `ip-router` 提供以下 HTTP 接口（服务默认只监听本机地址）：
 
 - `GET /health`：健康检查。
-- `GET /`：显示路由管理 HTML 页面，可添加、批量删除及逐条删除路由。
+- `GET /`：显示路由与指定域名 DNS 分流管理页面。
+- `GET /domains`：列出本服务管理的全部 DNS 分流域名。
+- `POST /domain?domains=<域名列表>`：批量添加 DNS 分流域名，支持用逗号、分号或空白分隔，一次最多 4096 个。
+- `DELETE /domain?domain=<域名>`：删除一个 DNS 分流域名；也可使用 `domains` 参数批量删除。
 - `GET /routes`：以字符串 `key` 分组，列出本服务成功设置且尚未删除的全部 IP 路由。
 - `GET /system-routes`：直接读取系统路由表，列出静态 IPv4 主机路由及其网关和网络接口。
 - `DELETE /system-route?ip=<目标IPv4>&gateway=<网关IPv4>`：直接删除指定的系统静态主机路由。
@@ -33,9 +36,39 @@ ip router，快捷访问网络。
 `ttl` 为可选的整数秒数；缺省或小于等于 `0` 时永不过期，大于 `0` 时到期自动删除系统路由。
 修改系统路由表通常需要以 root 或具备相应网络管理权限的用户运行服务。
 
+在 macOS 上，域名管理接口会为每个域名创建
+`resolver_dir/<域名>`，使该域名及其全部子域名使用 dns-gate，其余域名继续使用
+系统或 VPN 的默认 DNS。默认配置为：
+
+```ini
+resolver_dir = /etc/resolver
+dns_gate_nameserver = 127.0.0.1
+dns_gate_port = 53
+resolver_search_order = 1
+```
+
+服务需要具备创建及删除 `resolver_dir` 中文件的权限，通常应以 root 运行。
+接口只会更新或删除带有 `# managed by ip-router` 标记的文件；如果同名文件由
+用户或其他软件创建，添加和删除操作都会拒绝执行，避免破坏已有 DNS 配置。
+
+例如：
+
+```shell
+curl -X POST --data-urlencode $'domains=webcool.cn\nexample.com' \
+  'http://127.0.0.1:8088/domain'
+curl 'http://127.0.0.1:8088/domains'
+curl -X DELETE 'http://127.0.0.1:8088/domain?domain=webcool.cn'
+```
+
 服务将内存路由持久化到配置项 `routes_file` 指定的文件。该配置留空或未设置时，默认使用程序当前运行目录下的 `routes.db`；既可填写绝对路径，也可填写相对于当前运行目录的路径（目标目录需已存在且可写）。启动时会恢复其中尚未过期的路由；添加、删除及 TTL 自动过期时会同步更新该文件。通过 ACL master 部署且使用默认配置时，文件位于 `{install_path}/var/routes.db`。
 
 根页面模板位于 `ip-router/html/index.html`。服务会在每次请求时读取模板，页面通过 `/routes` 接口加载数据，修改 HTML 后刷新即可生效。
+页面中的服务内存路由会先按可注册根域名合并显示；例如
+`www.iqiyi.com` 和
+`ipv6-static.dns.iqiyi.com` 会折叠在同一个 `iqiyi.com` 分组下。
+服务内存路由表支持用复选框选择一个或多个根域名，并批量写入
+`resolver_dir`。macOS 写入完成后会自动刷新 DNS 缓存并通知
+`mDNSResponder` 重新加载配置；已经配置的根域名会在页面中标记为“已配置”。
 
 #### dns-gate GeoIP 自动路由
 
