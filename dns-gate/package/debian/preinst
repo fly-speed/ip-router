@@ -1,0 +1,12 @@
+#!/bin/sh
+
+set -eu
+
+MASTER_CTL="/opt/soft/acl-master/bin/master_ctl"
+if [ ! -x "$MASTER_CTL" ]; then
+	echo "acl-master is required but $MASTER_CTL was not found." >&2
+	echo "Install acl-master under /opt/soft/acl-master first." >&2
+	exit 1
+fi
+
+exit 0

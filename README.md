@@ -9,9 +9,41 @@ ip router，快捷访问网络。
 
 #### 安装教程
 
-1.  xxxx
-2.  xxxx
-3.  xxxx
+项目在 `ip-router/package` 中提供平台原生安装包构建脚本。运行安装包前，
+需要先将 acl-master 安装至 `/opt/soft/acl-master`。
+
+macOS：
+
+```shell
+cd ip-router/package
+./build-macos.sh
+sudo installer -pkg ./dist/ip-router-1.0.0-macos-$(uname -m).pkg -target /
+```
+
+Ubuntu：
+
+```shell
+cd ip-router/package
+./build-ubuntu.sh
+sudo apt install ./dist/ip-router_1.0.0_$(dpkg --print-architecture).deb
+```
+
+dns-gate 使用对应目录下的脚本：
+
+```shell
+# macOS
+cd dns-gate/package
+./build-macos.sh
+
+# Ubuntu
+cd dns-gate/package
+./build-ubuntu.sh
+```
+
+ip-router 和 dns-gate 的安装路径分别固定为 `/opt/soft/ip-router` 和
+`/opt/soft/dns-gate`。安装程序会自动将服务加入
+`/opt/soft/acl-master/conf/services.cf` 并启动服务。详细的版本、签名、
+升级和构建参数参见两个模块各自的 `package/README.md`。
 
 #### 使用说明
 
@@ -67,7 +99,7 @@ curl 'http://127.0.0.1:8088/domains'
 curl -X DELETE 'http://127.0.0.1:8088/domain?domain=webcool.cn'
 ```
 
-服务将内存路由持久化到配置项 `routes_file` 指定的文件。该配置留空或未设置时，默认使用程序当前运行目录下的 `routes.db`；既可填写绝对路径，也可填写相对于当前运行目录的路径（目标目录需已存在且可写）。启动时会恢复其中尚未过期的路由；添加、删除及 TTL 自动过期时会同步更新该文件。通过 ACL master 部署且使用默认配置时，文件位于 `{install_path}/var/routes.db`。
+服务将内存路由持久化到配置项 `routes_file` 指定的文件。该配置留空或未设置时，默认使用程序当前运行目录下的 `routes.db`；既可填写绝对路径，也可填写相对于当前运行目录的路径（目标目录需已存在且可写）。启动时会恢复其中尚未过期的路由；添加、删除及 TTL 自动过期时会同步更新该文件。通过安装包部署时，文件位于 `/opt/soft/ip-router/conf/routes.db`。
 
 根页面模板位于 `ip-router/html/index.html`。服务会在每次请求时读取模板，页面通过 `/routes` 接口加载数据，修改 HTML 后刷新即可生效。
 管理页面采用左右分栏布局：左侧为固定功能导航，点击后在右侧切换并只显示

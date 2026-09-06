@@ -1,0 +1,9 @@
+#!/bin/sh
+
+set -eu
+
+if [ "${1:-}" = "remove" ] || [ "${1:-}" = "deconfigure" ]; then
+	/opt/soft/ip-router/bin/ip-router-service stop || true
+fi
+
+exit 0

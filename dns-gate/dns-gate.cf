@@ -1,5 +1,5 @@
 
-service server
+service dns-gate
 {
 #	进程是否禁止运行
 	master_disable = no

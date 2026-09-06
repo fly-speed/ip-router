@@ -21,6 +21,10 @@ tags
 # ip-router runtime state
 ip-router/routes.db
 ip-router/routes.db.tmp
+ip-router/routes.db.global
+ip-router/routes.db.global.tmp
+ip-router/package/dist/
+dns-gate/package/dist/
 
 # Downloaded DB-IP runtime data
 dns-gate/dbip-country-lite*.mmdb

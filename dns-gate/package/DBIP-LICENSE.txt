@@ -1,0 +1,7 @@
+The DB-IP Country Lite database included in a dns-gate package is provided by
+DB-IP.com under the Creative Commons Attribution 4.0 International License.
+
+Database source: https://db-ip.com/db/download/ip-to-country-lite
+License: https://creativecommons.org/licenses/by/4.0/
+
+This product includes IP geolocation data created by DB-IP.com.

@@ -1,0 +1,24 @@
+#!/bin/sh
+
+set -eu
+
+INSTALL_ROOT="/opt/soft/dns-gate"
+DEFAULT_CONF="$INSTALL_ROOT/conf/dns-gate.cf.default"
+SERVICE_CONF="$INSTALL_ROOT/conf/dns-gate.cf"
+BUNDLED_DATABASE="$INSTALL_ROOT/share/dbip/dbip-country-lite.mmdb"
+RUNTIME_DATABASE="$INSTALL_ROOT/var/dbip-country-lite.mmdb"
+
+install -d -m 755 "$INSTALL_ROOT/conf" "$INSTALL_ROOT/sh" \
+	"$INSTALL_ROOT/var/log" "$INSTALL_ROOT/var/pid"
+if [ ! -f "$SERVICE_CONF" ]; then
+	cp "$DEFAULT_CONF" "$SERVICE_CONF"
+	chmod 600 "$SERVICE_CONF"
+fi
+if [ ! -s "$RUNTIME_DATABASE" ]; then
+	cp "$BUNDLED_DATABASE" "$RUNTIME_DATABASE"
+	chmod 644 "$RUNTIME_DATABASE"
+fi
+chmod 1777 "$INSTALL_ROOT/var/log"
+"$INSTALL_ROOT/bin/dns-gate-service" install
+
+exit 0

@@ -1,0 +1,9 @@
+#!/bin/sh
+
+set -eu
+
+if [ "${1:-}" = "remove" ] || [ "${1:-}" = "deconfigure" ]; then
+	/opt/soft/dns-gate/bin/dns-gate-service stop || true
+fi
+
+exit 0

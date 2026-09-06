@@ -1,0 +1,15 @@
+#!/bin/sh
+
+set -eu
+
+if [ "${1:-}" = "remove" ] || [ "${1:-}" = "purge" ]; then
+	SERVICE_CONF="/opt/soft/ip-router/conf/ip-router.cf"
+	MASTER_SERVICES="/opt/soft/acl-master/conf/services.cf"
+	if [ -f "$MASTER_SERVICES" ]; then
+		temporary="$MASTER_SERVICES.ip-router.$$"
+		grep -Fvx "$SERVICE_CONF" "$MASTER_SERVICES" > "$temporary" || true
+		mv "$temporary" "$MASTER_SERVICES"
+	fi
+fi
+
+exit 0

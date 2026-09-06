@@ -1,0 +1,18 @@
+#!/bin/sh
+
+set -eu
+
+INSTALL_ROOT="/opt/soft/ip-router"
+DEFAULT_CONF="$INSTALL_ROOT/conf/ip-router.cf.default"
+SERVICE_CONF="$INSTALL_ROOT/conf/ip-router.cf"
+
+install -d -m 755 "$INSTALL_ROOT/conf" "$INSTALL_ROOT/var/html" \
+	"$INSTALL_ROOT/var/log" "$INSTALL_ROOT/var/pid"
+if [ ! -f "$SERVICE_CONF" ]; then
+	cp "$DEFAULT_CONF" "$SERVICE_CONF"
+	chmod 600 "$SERVICE_CONF"
+fi
+chmod 1777 "$INSTALL_ROOT/var/log"
+"$INSTALL_ROOT/bin/ip-router-service" install
+
+exit 0
