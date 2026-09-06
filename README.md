@@ -20,6 +20,7 @@ ip router，快捷访问网络。
 - `GET /health`：健康检查。
 - `GET /`：显示路由与指定域名 DNS 分流管理页面。
 - `GET /domains`：列出本服务管理的全部 DNS 分流域名。
+- `GET /tlds`：列出随项目提供的 IANA 根区一级域名及清单版本。
 - `POST /domain?domains=<域名列表>`：批量添加 DNS 分流域名，支持用逗号、分号或空白分隔，一次最多 4096 个。
 - `DELETE /domain?domain=<域名>`：删除一个 DNS 分流域名；也可使用 `domains` 参数批量删除。
 - `GET /routes`：以字符串 `key` 分组，列出本服务成功设置且尚未删除的全部 IP 路由。
@@ -63,12 +64,27 @@ curl -X DELETE 'http://127.0.0.1:8088/domain?domain=webcool.cn'
 服务将内存路由持久化到配置项 `routes_file` 指定的文件。该配置留空或未设置时，默认使用程序当前运行目录下的 `routes.db`；既可填写绝对路径，也可填写相对于当前运行目录的路径（目标目录需已存在且可写）。启动时会恢复其中尚未过期的路由；添加、删除及 TTL 自动过期时会同步更新该文件。通过 ACL master 部署且使用默认配置时，文件位于 `{install_path}/var/routes.db`。
 
 根页面模板位于 `ip-router/html/index.html`。服务会在每次请求时读取模板，页面通过 `/routes` 接口加载数据，修改 HTML 后刷新即可生效。
+管理页面采用左右分栏布局：左侧为固定功能导航，点击后在右侧切换并只显示
+对应的功能区；窄屏设备会自动切换为顶部横向导航。
 页面中的服务内存路由会先按可注册根域名合并显示；例如
 `www.iqiyi.com` 和
 `ipv6-static.dns.iqiyi.com` 会折叠在同一个 `iqiyi.com` 分组下。
 服务内存路由表支持用复选框选择一个或多个根域名，并批量写入
 `resolver_dir`。macOS 写入完成后会自动刷新 DNS 缓存并通知
 `mDNSResponder` 重新加载配置；已经配置的根域名会在页面中标记为“已配置”。
+
+“全局 DNS 接管”区域使用 IANA 官方根区 TLD 清单，可以搜索、选择部分
+TLD，或一键将全部尚未配置的 TLD 写入 `resolver_dir`。这样可以让 dns-gate
+接管所有公共 DNS 根区域名；私有后缀、单标签主机名以及 mDNS 名称不属于
+IANA 根区，因此不在该功能覆盖范围内。当前清单位于
+`ip-router/html/tlds-alpha-by-domain.txt`，更新方式：
+
+```shell
+cd ip-router
+./update-tlds.sh
+```
+
+清单来源：<https://data.iana.org/TLD/tlds-alpha-by-domain.txt>。
 
 #### dns-gate GeoIP 自动路由
 

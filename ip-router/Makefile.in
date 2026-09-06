@@ -188,4 +188,5 @@ install:
 	cp $(PROG) ../../../dist/master/sbin/$(RPATH)/
 	cp $(PROG).cf ../../../dist/master/conf/service/
 	cp html/index.html ../../../dist/master/var/html/
+	cp html/tlds-alpha-by-domain.txt ../../../dist/master/var/html/
 ###########################################################

@@ -7,11 +7,67 @@
   <style>
     body {
       margin: 0;
+      overflow: hidden;
       background: #f4f7fb;
       color: #182230;
       font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
     }
-    main { max-width: 1100px; margin: 48px auto; padding: 0 20px; }
+    html { scroll-behavior: smooth; }
+    .app-shell {
+      display: grid;
+      grid-template-columns: 248px minmax(0, 1fr);
+      min-height: 100vh;
+    }
+    .sidebar {
+      position: sticky;
+      top: 0;
+      box-sizing: border-box;
+      height: 100vh;
+      padding: 28px 18px;
+      color: #e4e7ec;
+      background: #101828;
+      border-right: 1px solid #1d2939;
+    }
+    .sidebar-brand { padding: 0 10px 24px; border-bottom: 1px solid #344054; }
+    .sidebar-brand h1 { color: #fff; font-size: 21px; }
+    .sidebar-brand p { color: #98a2b3; font-size: 12px; }
+    .side-nav { display: grid; gap: 6px; margin-top: 22px; }
+    .side-nav a {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 10px 12px;
+      color: #d0d5dd;
+      font-size: 14px;
+      text-decoration: none;
+      border-radius: 7px;
+    }
+    .side-nav a:hover, .side-nav a.active { color: #fff; background: #344054; }
+    .nav-icon { width: 18px; text-align: center; }
+    .sidebar-footer {
+      position: absolute;
+      right: 18px;
+      bottom: 24px;
+      left: 18px;
+      display: grid;
+      gap: 8px;
+      padding-top: 16px;
+      border-top: 1px solid #344054;
+    }
+    .sidebar-footer a { color: #98a2b3; font-size: 12px; text-decoration: none; }
+    .sidebar-footer a:hover { color: #fff; }
+    main {
+      box-sizing: border-box;
+      height: 100vh;
+      min-width: 0;
+      overflow-y: auto;
+      padding: 36px 32px 56px;
+      scroll-behavior: smooth;
+    }
+    .content { width: 100%; max-width: 1400px; margin: 0 auto; }
+    .workspace-view:not(.active) { display: none; }
+    .workspace-view.active { display: block; }
+    .controls.workspace-view.active { display: grid; }
     header {
       display: flex;
       align-items: end;
@@ -159,6 +215,54 @@
       border-radius: 999px;
     }
     .list-actions { display: flex; align-items: center; gap: 8px; }
+    .tld-toolbar {
+      display: flex;
+      align-items: end;
+      justify-content: space-between;
+      gap: 12px;
+      margin-bottom: 14px;
+    }
+    .tld-toolbar label { flex: 1; max-width: 360px; }
+    .tld-buttons { display: flex; flex-wrap: wrap; gap: 8px; }
+    .hot-tld-section { margin-bottom: 14px; }
+    .hot-tld-title {
+      margin-bottom: 8px;
+      color: #344054;
+      font-size: 13px;
+      font-weight: 600;
+    }
+    .hot-tld-row {
+      display: flex;
+      flex-wrap: nowrap;
+      gap: 8px;
+      overflow-x: auto;
+      padding-bottom: 4px;
+    }
+    .hot-tld-row .tld-item {
+      flex: 0 0 auto;
+      min-width: 104px;
+      border: 1px solid #eaecf0;
+      border-radius: 8px;
+    }
+    .tld-selection { display: flex; align-items: center; gap: 8px; margin-bottom: 10px; }
+    .tld-scroll { max-height: 330px; overflow-y: auto; border: 1px solid #eaecf0; border-radius: 8px; }
+    .tld-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(125px, 1fr));
+      gap: 0;
+    }
+    .tld-item {
+      display: flex;
+      grid-template-columns: none;
+      align-items: center;
+      gap: 8px;
+      padding: 9px 11px;
+      border-right: 1px solid #f2f4f7;
+      border-bottom: 1px solid #f2f4f7;
+    }
+    .tld-item.configured { color: #667085; background: #f9fafb; }
+    .tld-item-name { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
+    .tld-empty { grid-column: 1 / -1; padding: 32px; color: #667085; text-align: center; }
     td { font-size: 14px; }
     tr:last-child td { border-bottom: 0; }
     code { color: #175cd3; }
@@ -187,32 +291,63 @@
     .pagination button:hover:not(:disabled) { background: #f2f4f7; }
     .pagination button:disabled { cursor: default; opacity: .45; }
     @media (max-width: 800px) {
-      main { margin-top: 24px; }
+      body { overflow: auto; }
+      .app-shell { display: block; }
+      .sidebar {
+        position: static;
+        width: 100%;
+        height: auto;
+        padding: 16px;
+      }
+      .sidebar-brand { padding: 0 4px 12px; }
+      .side-nav { display: flex; gap: 6px; margin-top: 12px; overflow-x: auto; }
+      .side-nav a { flex: 0 0 auto; padding: 8px 10px; }
+      .sidebar-footer { display: none; }
+      main { height: auto; padding: 24px 16px 40px; overflow: visible; }
       header { align-items: start; }
       .controls { grid-template-columns: 1fr; }
       .form-grid { grid-template-columns: 1fr; }
       .list-heading { align-items: start; flex-direction: column; }
       .list-actions { align-items: start; flex-direction: column; }
+      .tld-toolbar { align-items: stretch; flex-direction: column; }
+      .tld-toolbar label { max-width: none; }
       .pagination { align-items: stretch; flex-direction: column; }
       .page-buttons { justify-content: space-between; }
     }
   </style>
 </head>
 <body>
-  <main>
+  <div class="app-shell">
+    <aside class="sidebar" aria-label="功能导航">
+      <div class="sidebar-brand">
+        <h1>IP Router</h1>
+        <p>路由与 DNS 分流控制台</p>
+      </div>
+      <nav class="side-nav">
+        <a class="active" href="#route-actions" data-title="路由操作" data-description="添加或批量删除指定 KEY 的主机路由"><span class="nav-icon">＋</span>路由操作</a>
+        <a href="#dns-domains" data-title="指定域名 DNS" data-description="管理由 dns-gate 接管的指定域名"><span class="nav-icon">◆</span>指定域名 DNS</a>
+        <a href="#global-dns" data-title="全局 DNS 接管" data-description="通过 IANA 一级根域名接管所有公共 DNS 查询"><span class="nav-icon">◎</span>全局 DNS 接管</a>
+        <a href="#memory-routes" data-title="服务内存路由" data-description="查看、折叠和删除 ip-router 管理的路由"><span class="nav-icon">▤</span>服务内存路由</a>
+        <a href="#system-routes-panel" data-title="系统静态路由" data-description="直接查看和删除操作系统中的静态主机路由"><span class="nav-icon">⌘</span>系统静态路由</a>
+      </nav>
+      <div class="sidebar-footer">
+        <a href="/domains">域名 JSON API</a>
+        <a href="/routes">内存路由 JSON API</a>
+        <a href="/system-routes">系统路由 JSON API</a>
+      </div>
+    </aside>
+    <main>
+      <div class="content">
     <header>
       <div>
-        <h1>IP 路由列表</h1>
-        <p id="summary">正在加载路由列表…</p>
+        <h1 id="workspace-title">路由操作</h1>
+        <p id="workspace-description">添加或批量删除指定 KEY 的主机路由</p>
       </div>
       <div class="actions">
         <a id="refresh" href="/">刷新</a>
-        <a href="/domains">域名 JSON</a>
-        <a href="/routes">查看 JSON</a>
-        <a href="/system-routes">系统 JSON</a>
       </div>
     </header>
-    <div class="controls">
+    <div id="route-actions" class="controls workspace-view active">
       <section class="card panel">
         <h2>添加路由</h2>
         <form id="add-form" class="form-grid">
@@ -253,7 +388,7 @@
       </section>
     </div>
     <div id="notice" class="notice" role="status" aria-live="polite"></div>
-    <section class="list-section">
+    <section id="dns-domains" class="list-section workspace-view">
       <div class="list-heading">
         <div>
           <h2>指定域名 DNS 分流</h2>
@@ -312,11 +447,48 @@
         </div>
       </div>
     </section>
-    <section class="list-section">
+    <section id="global-dns" class="list-section workspace-view">
+      <div class="list-heading">
+        <h2>全局 DNS 接管（IANA 一级根域名）</h2>
+        <p id="tld-summary">正在加载 IANA 根区域名列表…</p>
+      </div>
+      <div class="card panel">
+        <div class="tld-toolbar">
+          <label>
+            搜索一级根域名
+            <input id="tld-search" type="search" placeholder="例如 com、cn、net">
+          </label>
+          <div class="tld-buttons">
+            <button id="add-selected-tlds" type="button" disabled>添加选中项</button>
+            <button id="delete-selected-tlds" class="danger" type="button" disabled>删除选中项</button>
+            <button id="add-all-tlds" type="button" disabled>添加全部未配置 TLD</button>
+          </div>
+        </div>
+        <div class="hot-tld-section">
+          <div class="hot-tld-title">常用 TLD</div>
+          <div id="hot-tld-list" class="hot-tld-row">
+            <div class="tld-empty">正在加载…</div>
+          </div>
+        </div>
+        <label class="tld-selection">
+          <input id="tld-select-all" type="checkbox">
+          选择当前搜索结果中的全部 TLD
+        </label>
+        <div class="tld-scroll">
+          <div id="tld-list" class="tld-grid">
+            <div class="tld-empty">正在加载…</div>
+          </div>
+        </div>
+        <p class="hint" style="margin-top: 12px">
+          添加全部 IANA TLD 后，所有公共 DNS 根区域名都将由 dns-gate 解析；私有后缀、单标签主机名和 mDNS 不在此范围内。
+        </p>
+      </div>
+    </section>
+    <section id="memory-routes" class="list-section workspace-view">
       <div class="list-heading">
         <h2>服务内存路由</h2>
         <div class="list-actions">
-          <p>按根域名合并，展开后显示原始 KEY</p>
+          <p id="summary">正在加载路由列表…</p>
           <button id="add-selected-domains" class="small" type="button" disabled>
             添加选中域名至系统 DNS
           </button>
@@ -368,7 +540,7 @@
         </div>
       </div>
     </section>
-    <section class="list-section">
+    <section id="system-routes-panel" class="list-section workspace-view">
       <div class="list-heading">
         <h2>系统静态主机路由</h2>
         <p id="system-summary">正在直接读取系统路由表…</p>
@@ -406,7 +578,9 @@
         </div>
       </div>
     </section>
-  </main>
+      </div>
+    </main>
+  </div>
   <script>
     const summary = document.getElementById("summary");
     const rows = document.getElementById("route-rows");
@@ -414,6 +588,23 @@
     const systemRows = document.getElementById("system-route-rows");
     const domainRows = document.getElementById("domain-rows");
     const notice = document.getElementById("notice");
+    const tldSummary = document.getElementById("tld-summary");
+    const hotTldList = document.getElementById("hot-tld-list");
+    const tldList = document.getElementById("tld-list");
+    const tldSearch = document.getElementById("tld-search");
+    const tldSelectAll = document.getElementById("tld-select-all");
+    const addSelectedTlds = document.getElementById("add-selected-tlds");
+    const deleteSelectedTlds = document.getElementById("delete-selected-tlds");
+    const addAllTlds = document.getElementById("add-all-tlds");
+    const tldState = {
+      items: [],
+      selected: new Set(),
+      version: ""
+    };
+    const popularTlds = [
+      "com", "net", "cn", "ai", "io", "org", "co", "app", "dev", "me",
+      "tv", "cc", "info", "biz", "xyz", "top"
+    ];
     const domainPager = {
       page: 1,
       pageSize: 50,
@@ -458,6 +649,31 @@
       if (code) cell.appendChild(node);
       if (className) cell.className = className;
       row.appendChild(cell);
+      return cell;
+    }
+
+    function updateCountdownCell(cell, now = Math.floor(Date.now() / 1000)) {
+      const expiresAt = Number(cell.dataset.expiresAt || 0);
+      const ttl = Number(cell.dataset.ttl || 0);
+      const remaining = Math.max(0, Math.ceil(expiresAt - now));
+      cell.textContent = `${ttl} 秒（剩余 ${remaining} 秒）`;
+    }
+
+    function addRouteTtlCell(row, target) {
+      if (Number(target.expires_at) > 0) {
+        const cell = addCell(row, "", "expiring");
+        cell.dataset.ttl = String(target.ttl || 0);
+        cell.dataset.expiresAt = String(target.expires_at);
+        updateCountdownCell(cell);
+      } else {
+        addCell(row, "永久", "permanent");
+      }
+    }
+
+    function updateRouteCountdowns() {
+      const now = Math.floor(Date.now() / 1000);
+      rows.querySelectorAll("[data-expires-at]").forEach((cell) =>
+        updateCountdownCell(cell, now));
     }
 
     function showMessage(message) {
@@ -714,6 +930,7 @@
         if (!response.ok) throw new Error(data.message || `HTTP ${response.status}`);
         domainPager.items = Array.isArray(data.domains) ? data.domains : [];
         renderDomainPage();
+        renderTlds();
       } catch (error) {
         showDomainMessage(`域名列表加载失败：${error.message}`);
       }
@@ -765,10 +982,129 @@
       ));
     }
 
+    function domainCovered(domain, configured) {
+      for (const resolverDomain of configured) {
+        if (domain === resolverDomain || domain.endsWith(`.${resolverDomain}`)) {
+          return true;
+        }
+      }
+      return false;
+    }
+
+    function filteredTlds() {
+      const query = tldSearch.value.trim().toLowerCase();
+      return query ? tldState.items.filter((tld) => tld.includes(query)) : tldState.items;
+    }
+
+    function createTldItem(tld, configured) {
+      const isConfigured = configured.has(tld);
+      const label = document.createElement("label");
+      label.className = `tld-item${isConfigured ? " configured" : ""}`;
+      const checkbox = document.createElement("input");
+      checkbox.type = "checkbox";
+      checkbox.checked = tldState.selected.has(tld);
+      checkbox.setAttribute("aria-label", isConfigured
+        ? `选择已配置的 ${tld}` : `选择 ${tld}`);
+      checkbox.addEventListener("change", () => {
+        if (checkbox.checked) tldState.selected.add(tld);
+        else tldState.selected.delete(tld);
+        renderTlds();
+      });
+      const name = document.createElement("span");
+      name.className = "tld-item-name";
+      name.textContent = tld;
+      label.append(checkbox, name);
+      if (isConfigured) {
+        const badge = document.createElement("span");
+        badge.className = "configured-badge";
+        badge.textContent = "已配置";
+        label.appendChild(badge);
+      }
+      return label;
+    }
+
+    function renderTlds() {
+      const configured = configuredResolverDomains();
+      tldState.selected.forEach((tld) => {
+        if (!tldState.items.includes(tld)) {
+          tldState.selected.delete(tld);
+        }
+      });
+      const availablePopularTlds = popularTlds.filter((tld) => tldState.items.includes(tld));
+      const popularTldSet = new Set(availablePopularTlds);
+      const visible = filteredTlds();
+      const otherVisible = visible.filter((tld) => !popularTldSet.has(tld));
+      const selectedVisible = visible.filter((tld) => tldState.selected.has(tld));
+      const missing = tldState.items.filter((tld) => !configured.has(tld));
+      const selectedToAdd = Array.from(tldState.selected).filter((tld) => !configured.has(tld));
+      const selectedToDelete = Array.from(tldState.selected).filter((tld) => configured.has(tld));
+
+      hotTldList.replaceChildren();
+      if (availablePopularTlds.length === 0) {
+        const empty = document.createElement("div");
+        empty.className = "tld-empty";
+        empty.textContent = "尚未加载常用 TLD";
+        hotTldList.appendChild(empty);
+      } else {
+        availablePopularTlds.forEach((tld) => {
+          hotTldList.appendChild(createTldItem(tld, configured));
+        });
+      }
+
+      tldList.replaceChildren();
+      if (otherVisible.length === 0) {
+        const empty = document.createElement("div");
+        empty.className = "tld-empty";
+        empty.textContent = tldState.items.length === 0
+          ? "尚未加载 TLD 列表" : "没有匹配的其他 TLD";
+        tldList.appendChild(empty);
+      } else {
+        otherVisible.forEach((tld) => {
+          tldList.appendChild(createTldItem(tld, configured));
+        });
+      }
+
+      const configuredCount = tldState.items.length - missing.length;
+      tldSummary.textContent = `${tldState.version || "IANA 根区清单"}；共 ${tldState.items.length} 个 TLD，已配置 ${configuredCount} 个`;
+      tldSelectAll.checked = visible.length > 0
+        && selectedVisible.length === visible.length;
+      tldSelectAll.indeterminate = selectedVisible.length > 0
+        && selectedVisible.length < visible.length;
+      tldSelectAll.disabled = visible.length === 0;
+      addSelectedTlds.disabled = selectedToAdd.length === 0;
+      addSelectedTlds.textContent = selectedToAdd.length > 0
+        ? `添加选中的 ${selectedToAdd.length} 个 TLD` : "添加选中项";
+      deleteSelectedTlds.disabled = selectedToDelete.length === 0;
+      deleteSelectedTlds.textContent = selectedToDelete.length > 0
+        ? `删除选中的 ${selectedToDelete.length} 个 TLD` : "删除选中项";
+      addAllTlds.disabled = missing.length === 0;
+      addAllTlds.textContent = missing.length > 0
+        ? `添加全部 ${missing.length} 个未配置 TLD` : "全部 TLD 已配置";
+    }
+
+    async function loadTlds() {
+      try {
+        const response = await fetch("/tlds", { cache: "no-store" });
+        const data = await response.json().catch(() => ({}));
+        if (!response.ok) throw new Error(data.message || `HTTP ${response.status}`);
+        tldState.items = Array.isArray(data.tlds)
+          ? data.tlds.map((item) => String(item.name || "")).filter(Boolean) : [];
+        tldState.version = data.version || "";
+        renderTlds();
+      } catch (error) {
+        tldSummary.textContent = "IANA 根区域名列表加载失败";
+        tldList.replaceChildren();
+        const empty = document.createElement("div");
+        empty.className = "tld-empty";
+        empty.textContent = `加载失败：${error.message}`;
+        tldList.appendChild(empty);
+      }
+    }
+
     function updateRouteSelection() {
       const configured = configuredResolverDomains();
       const selectable = routePager.items.filter((group) =>
-        group.rootDomain && !configured.has(group.rootDomain)
+        group.rootDomain && !domainCovered(group.rootDomain, configured)
       ).map((group) => group.rootDomain);
       const selectedCount = selectable.filter((domain) =>
         routePager.selectedDomains.has(domain)
@@ -843,7 +1179,6 @@
         return;
       }
 
-      const now = Math.floor(Date.now() / 1000);
       currentRoutePageItems().forEach((group) => {
         if (!group.rootDomain && group.targets.length === 1) {
           const target = group.targets[0];
@@ -852,11 +1187,10 @@
           addCell(row, target.ip || "");
           addCell(row, target.gateway || "");
           if (target.expires_at > 0) {
-            const remaining = Math.max(0, target.expires_at - now);
-            addCell(row, `${target.ttl} 秒（剩余 ${remaining} 秒）`, "expiring");
+            addRouteTtlCell(row, target);
             addCell(row, formatTimestamp(target.expires_at));
           } else {
-            addCell(row, "永久", "permanent");
+            addRouteTtlCell(row, target);
             addCell(row, "—");
           }
           addDeleteButton(row, group.key, target.ip || "");
@@ -938,11 +1272,10 @@
           addCell(childRow, target.ip || "");
           addCell(childRow, target.gateway || "");
           if (target.expires_at > 0) {
-            const remaining = Math.max(0, target.expires_at - now);
-            addCell(childRow, `${target.ttl} 秒（剩余 ${remaining} 秒）`, "expiring");
+            addRouteTtlCell(childRow, target);
             addCell(childRow, formatTimestamp(target.expires_at));
           } else {
-            addCell(childRow, "永久", "permanent");
+            addRouteTtlCell(childRow, target);
             addCell(childRow, "—");
           }
           addDeleteButton(childRow, target.sourceKey, target.ip || "");
@@ -963,7 +1296,8 @@
           groupedRoutes.set(groupKey, {
             key: groupKey,
             rootDomain,
-            configured: rootDomain ? configured.has(rootDomain) : false,
+            configured: rootDomain
+              ? domainCovered(rootDomain, configured) : false,
             sourceKeys: [],
             targets: []
           });
@@ -981,7 +1315,7 @@
       const activeDomains = new Set(routePager.items
         .map((group) => group.rootDomain).filter(Boolean));
       routePager.selectedDomains.forEach((domain) => {
-        if (!activeDomains.has(domain) || configured.has(domain)) {
+        if (!activeDomains.has(domain) || domainCovered(domain, configured)) {
           routePager.selectedDomains.delete(domain);
         }
       });
@@ -1060,12 +1394,40 @@
 
     async function loadAllRoutes() {
       await loadDomains();
-      await Promise.all([loadRoutes(), loadSystemRoutes()]);
+      await Promise.all([loadTlds(), loadRoutes(), loadSystemRoutes()]);
     }
 
-    document.getElementById("refresh").addEventListener("click", (event) => {
+    async function refreshWorkspace(targetId) {
+      switch (targetId) {
+        case "dns-domains":
+          showDomainMessage("正在从服务器重新加载…");
+          await loadDomains();
+          break;
+        case "global-dns":
+          tldSummary.textContent = "正在从服务器重新加载 IANA 根区域名列表…";
+          await loadDomains();
+          await loadTlds();
+          break;
+        case "memory-routes":
+          summary.textContent = "正在从服务器重新加载路由列表…";
+          showMessage("正在加载…");
+          await loadDomains();
+          await loadRoutes();
+          break;
+        case "system-routes-panel":
+          systemSummary.textContent = "正在从服务器重新读取系统路由表…";
+          showSystemMessage("正在加载…");
+          await loadSystemRoutes();
+          break;
+        default:
+          break;
+      }
+    }
+
+    document.getElementById("refresh").addEventListener("click", async (event) => {
       event.preventDefault();
-      loadAllRoutes();
+      const active = document.querySelector(".workspace-view.active");
+      if (active) await refreshWorkspace(active.id);
     });
 
     document.getElementById("add-form").addEventListener("submit", async (event) => {
@@ -1135,10 +1497,80 @@
     bindPagination(routePager, renderRoutePage);
     bindPagination(systemPager, renderSystemRoutePage);
     bindPagination(domainPager, renderDomainPage);
+    tldSearch.addEventListener("input", renderTlds);
+    tldSelectAll.addEventListener("change", () => {
+      filteredTlds().forEach((tld) => {
+        if (tldSelectAll.checked) tldState.selected.add(tld);
+        else tldState.selected.delete(tld);
+      });
+      renderTlds();
+    });
+
+    async function addTldsToSystem(domains, button) {
+      button.disabled = true;
+      const originalText = button.textContent;
+      button.textContent = "正在写入并刷新 DNS…";
+      try {
+        const data = await domainRequest("POST", domains.join("\n"));
+        const refreshed = data.system_refreshed !== false;
+        domains.forEach((tld) => tldState.selected.delete(tld));
+        showNotice(`TLD 配置完成：成功 ${data.succeeded}/${data.count} 个`
+          + (refreshed ? "，系统 DNS 已自动生效"
+            : `，但刷新失败：${data.refresh_error || "未知错误"}`),
+          data.success && refreshed ? "success" : "warning");
+      } catch (error) {
+        showNotice(`TLD 配置失败：${error.message}`, "error");
+      }
+      button.textContent = originalText;
+      await loadDomains();
+      await loadRoutes();
+      renderTlds();
+    }
+
+    addSelectedTlds.addEventListener("click", async () => {
+      const configured = configuredResolverDomains();
+      const domains = Array.from(tldState.selected)
+        .filter((tld) => !configured.has(tld)).sort(compareText);
+      if (domains.length === 0) return;
+      if (!window.confirm(`确定将选中的 ${domains.length} 个一级根域名加入 /etc/resolver 吗？`)) return;
+      await addTldsToSystem(domains, addSelectedTlds);
+    });
+    deleteSelectedTlds.addEventListener("click", async () => {
+      const configured = configuredResolverDomains();
+      const domains = Array.from(tldState.selected)
+        .filter((tld) => configured.has(tld)).sort(compareText);
+      if (domains.length === 0) return;
+      if (!window.confirm(`确定从 /etc/resolver 删除选中的 ${domains.length} 个一级根域名吗？`)) return;
+      deleteSelectedTlds.disabled = true;
+      const originalText = deleteSelectedTlds.textContent;
+      deleteSelectedTlds.textContent = "正在删除并刷新 DNS…";
+      try {
+        const data = await domainRequest("DELETE", domains.join("\n"));
+        const refreshed = data.system_refreshed !== false;
+        domains.forEach((tld) => tldState.selected.delete(tld));
+        showNotice(`TLD 删除完成：成功 ${data.succeeded}/${data.count} 个`
+          + (refreshed ? "，系统 DNS 已自动生效"
+            : `，但刷新失败：${data.refresh_error || "未知错误"}`),
+          data.success && refreshed ? "success" : "warning");
+      } catch (error) {
+        showNotice(`TLD 删除失败：${error.message}`, "error");
+      }
+      deleteSelectedTlds.textContent = originalText;
+      await loadDomains();
+      await loadRoutes();
+      renderTlds();
+    });
+    addAllTlds.addEventListener("click", async () => {
+      const configured = configuredResolverDomains();
+      const domains = tldState.items.filter((tld) => !configured.has(tld));
+      if (domains.length === 0) return;
+      if (!window.confirm(`即将创建 ${domains.length} 个 /etc/resolver 文件，并让 dns-gate 接管所有公共 DNS 域名。确定继续吗？`)) return;
+      await addTldsToSystem(domains, addAllTlds);
+    });
     routeSelectAll.addEventListener("change", () => {
       const configured = configuredResolverDomains();
       routePager.items.forEach((group) => {
-        if (!group.rootDomain || configured.has(group.rootDomain)) return;
+        if (!group.rootDomain || domainCovered(group.rootDomain, configured)) return;
         if (routeSelectAll.checked) {
           routePager.selectedDomains.add(group.rootDomain);
         } else {
@@ -1179,9 +1611,42 @@
     document.getElementById("expiration-sort").addEventListener("click", () => {
       changeRouteSort("expiration");
     });
+    const navigationLinks = Array.from(document.querySelectorAll(".side-nav a"));
+    const workspaceTitle = document.getElementById("workspace-title");
+    const workspaceDescription = document.getElementById("workspace-description");
+
+    function activateWorkspace(targetId, updateHash = true) {
+      const target = document.getElementById(targetId);
+      const link = navigationLinks.find((item) =>
+        item.getAttribute("href") === `#${targetId}`);
+      if (!target || !target.classList.contains("workspace-view") || !link) return;
+      document.querySelectorAll(".workspace-view").forEach((view) =>
+        view.classList.toggle("active", view === target));
+      navigationLinks.forEach((item) =>
+        item.classList.toggle("active", item === link));
+      workspaceTitle.textContent = link.dataset.title || link.textContent.trim();
+      workspaceDescription.textContent = link.dataset.description || "";
+      document.querySelector("main").scrollTop = 0;
+      if (updateHash) history.replaceState(null, "", `#${targetId}`);
+    }
+
+    navigationLinks.forEach((link) => {
+      link.addEventListener("click", async (event) => {
+        event.preventDefault();
+        const targetId = link.getAttribute("href").slice(1);
+        activateWorkspace(targetId);
+        await refreshWorkspace(targetId);
+      });
+    });
+    const initialWorkspace = location.hash ? location.hash.slice(1) : "route-actions";
+    activateWorkspace(initialWorkspace, false);
     updateRouteSortHeaders();
     updateDomainSortHeaders();
-    loadAllRoutes();
+    window.setInterval(updateRouteCountdowns, 1000);
+    document.addEventListener("visibilitychange", () => {
+      if (!document.hidden) updateRouteCountdowns();
+    });
+    refreshWorkspace(initialWorkspace);
   </script>
 </body>
 </html>

@@ -4,6 +4,7 @@
 #include "route_manager.h"
 #include "route_service.h"
 
+#include <ctype.h>
 #include <errno.h>
 #include <fstream>
 #include <iterator>
@@ -448,6 +449,53 @@ bool domain_list(HttpRequest&, HttpResponse& response)
 	return response.write(json);
 }
 
+bool tld_list(HttpRequest&, HttpResponse& response)
+{
+	std::ifstream input("html/tlds-alpha-by-domain.txt",
+		std::ios::in | std::ios::binary);
+	if (!input.is_open()) {
+		logger_error("load IANA TLD list failed");
+		return reply_json(response, 500, false,
+			"failed to load html/tlds-alpha-by-domain.txt");
+	}
+	acl::json json;
+	acl::json_node& root = json.get_root();
+	acl::json_node& items = json.create_node(true);
+	std::string version;
+	std::string line;
+	size_t count = 0;
+	while (std::getline(input, line)) {
+		if (!line.empty() && line[line.size() - 1] == '\r') {
+			line.erase(line.size() - 1);
+		}
+		if (line.empty()) {
+			continue;
+		}
+		if (line[0] == '#') {
+			if (version.empty()) {
+				version = line.size() > 2 ? line.substr(2) : line;
+			}
+			continue;
+		}
+		for (size_t i = 0; i < line.size(); ++i) {
+			line[i] = static_cast<char>(tolower(
+				static_cast<unsigned char>(line[i])));
+		}
+		items.add_child(json.create_node().add_text("name", line.c_str()));
+		++count;
+	}
+	if (!input.eof()) {
+		return reply_json(response, 500, false, "read IANA TLD list failed");
+	}
+	response.setStatus(200);
+	response.setContentType("application/json; charset=utf-8");
+	root.add_bool("success", true)
+		.add_text("version", version.c_str())
+		.add_number("count", static_cast<long long>(count))
+		.add_child("tlds", items);
+	return response.write(json);
+}
+
 bool load_html_template(std::string& content)
 {
 	std::ifstream input("html/index.html", std::ios::in | std::ios::binary);
@@ -569,6 +617,7 @@ void register_route_service(http_service& service)
 	service.Get("/", route_page)
 		.Get("/health", health)
 		.Get("/domains", domain_list)
+		.Get("/tlds", tld_list)
 		.Get("/routes", route_list)
 		.Get("/system-routes", system_route_list)
 		.Post("/route", route_add)

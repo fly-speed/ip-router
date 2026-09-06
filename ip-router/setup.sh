@@ -159,6 +159,8 @@ copy_all_file() {
 	copy_file a+x,go+rx $SERVICE_NAME $SERVICE_BIN
 	install_file a+x,go-wrx $SERVICE_NAME.cf $SERVICE_CONF
 	copy_file a+r,go+r html/index.html $VAR_PATH/html/index.html
+	copy_file a+r,go+r html/tlds-alpha-by-domain.txt \
+		$VAR_PATH/html/tlds-alpha-by-domain.txt
 }
 
 MASTER_PATH=/opt/soft/acl-master
