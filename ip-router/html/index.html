@@ -28,9 +28,20 @@
       background: #101828;
       border-right: 1px solid #1d2939;
     }
-    .sidebar-brand { padding: 0 10px 24px; border-bottom: 1px solid #344054; }
+    .sidebar-brand { position: relative; padding: 0 10px 24px; border-bottom: 1px solid #344054; }
     .sidebar-brand h1 { color: #fff; font-size: 21px; }
     .sidebar-brand p { color: #98a2b3; font-size: 12px; }
+    .language-switch {
+      position: absolute;
+      top: -4px;
+      right: 0;
+      padding: 5px 8px;
+      color: #d0d5dd;
+      font-size: 12px;
+      background: #1d2939;
+      border: 1px solid #475467;
+    }
+    .language-switch:hover { color: #fff; background: #344054; }
     .side-nav { display: grid; gap: 6px; margin-top: 22px; }
     .side-nav a {
       display: flex;
@@ -157,6 +168,8 @@
     }
     .list-heading h2 { margin: 0; font-size: 18px; }
     .list-heading p { margin: 0; font-size: 13px; }
+    .domain-search { width: min(320px, 100%); }
+    .route-search { width: min(260px, 100%); }
     .table-card { overflow: hidden; }
     .table-scroll { overflow-x: auto; }
     table { width: 100%; border-collapse: collapse; }
@@ -214,7 +227,7 @@
       background: #ecfdf3;
       border-radius: 999px;
     }
-    .list-actions { display: flex; align-items: center; gap: 8px; }
+    .list-actions { display: flex; flex-wrap: wrap; align-items: center; justify-content: flex-end; gap: 8px; }
     .tld-toolbar {
       display: flex;
       align-items: end;
@@ -318,22 +331,24 @@
 </head>
 <body>
   <div class="app-shell">
-    <aside class="sidebar" aria-label="功能导航">
+    <aside class="sidebar" aria-label="功能导航" data-i18n-aria-label="sidebarAria">
       <div class="sidebar-brand">
         <h1>IP Router</h1>
-        <p>路由与 DNS 分流控制台</p>
+        <p data-i18n="brandSubtitle">路由与 DNS 分流控制台</p>
+        <button id="language-switch" class="language-switch" type="button"
+          aria-label="Switch to English">EN</button>
       </div>
       <nav class="side-nav">
-        <a class="active" href="#route-actions" data-title="路由操作" data-description="添加或批量删除指定 KEY 的主机路由"><span class="nav-icon">＋</span>路由操作</a>
-        <a href="#dns-domains" data-title="指定域名 DNS" data-description="管理由 dns-gate 接管的指定域名"><span class="nav-icon">◆</span>指定域名 DNS</a>
-        <a href="#global-dns" data-title="全局 DNS 接管" data-description="通过 IANA 一级根域名接管所有公共 DNS 查询"><span class="nav-icon">◎</span>全局 DNS 接管</a>
-        <a href="#memory-routes" data-title="服务内存路由" data-description="查看、折叠和删除 ip-router 管理的路由"><span class="nav-icon">▤</span>服务内存路由</a>
-        <a href="#system-routes-panel" data-title="系统静态路由" data-description="直接查看和删除操作系统中的静态主机路由"><span class="nav-icon">⌘</span>系统静态路由</a>
+        <a class="active" href="#route-actions" data-title-key="routeActions" data-description-key="routeActionsDesc"><span class="nav-icon">＋</span><span data-i18n="routeActions">路由操作</span></a>
+        <a href="#dns-domains" data-title-key="domainDns" data-description-key="domainDnsDesc"><span class="nav-icon">◆</span><span data-i18n="domainDns">指定域名 DNS</span></a>
+        <a href="#global-dns" data-title-key="globalDns" data-description-key="globalDnsDesc"><span class="nav-icon">◎</span><span data-i18n="globalDns">全局 DNS 接管</span></a>
+        <a href="#memory-routes" data-title-key="memoryRoutes" data-description-key="memoryRoutesDesc"><span class="nav-icon">▤</span><span data-i18n="memoryRoutes">服务内存路由</span></a>
+        <a href="#system-routes-panel" data-title-key="systemRoutes" data-description-key="systemRoutesDesc"><span class="nav-icon">⌘</span><span data-i18n="systemRoutes">系统静态路由</span></a>
       </nav>
       <div class="sidebar-footer">
-        <a href="/domains">域名 JSON API</a>
-        <a href="/routes">内存路由 JSON API</a>
-        <a href="/system-routes">系统路由 JSON API</a>
+        <a href="/domains" data-i18n="domainJsonApi">域名 JSON API</a>
+        <a href="/routes" data-i18n="memoryJsonApi">内存路由 JSON API</a>
+        <a href="/system-routes" data-i18n="systemJsonApi">系统路由 JSON API</a>
       </div>
     </aside>
     <main>
@@ -344,46 +359,46 @@
         <p id="workspace-description">添加或批量删除指定 KEY 的主机路由</p>
       </div>
       <div class="actions">
-        <a id="refresh" href="/">刷新</a>
+        <a id="refresh" href="/" data-i18n="refresh">刷新</a>
       </div>
     </header>
     <div id="route-actions" class="controls workspace-view active">
       <section class="card panel">
-        <h2>添加路由</h2>
+        <h2 data-i18n="addRoute">添加路由</h2>
         <form id="add-form" class="form-grid">
           <label>
             KEY
-            <input name="key" maxlength="256" required placeholder="例如 dns.google">
+            <input name="key" maxlength="256" required placeholder="例如 dns.google" data-i18n-placeholder="keyPlaceholder">
           </label>
           <label>
-            目标 IP
-            <input name="ips" required placeholder="多个 IP 用逗号或空格分隔">
+            <span data-i18n="targetIp">目标 IP</span>
+            <input name="ips" required placeholder="多个 IP 用逗号或空格分隔" data-i18n-placeholder="ipsPlaceholder">
           </label>
           <label>
-            网关 IP
-            <input name="gateway" required placeholder="例如 192.168.1.1">
+            <span data-i18n="gatewayIp">网关 IP</span>
+            <input name="gateway" required placeholder="例如 192.168.1.1" data-i18n-placeholder="gatewayPlaceholder">
           </label>
           <label>
-            TTL（秒）
+            <span data-i18n="ttlSeconds">TTL（秒）</span>
             <input name="ttl" type="number" min="0" step="1" value="0">
           </label>
-          <p class="hint">TTL 为 0 表示永久；同一 KEY 可以一次添加多个目标 IP。</p>
-          <div class="form-actions"><button type="submit">添加路由</button></div>
+          <p class="hint" data-i18n="ttlHint">TTL 为 0 表示永久；同一 KEY 可以一次添加多个目标 IP。</p>
+          <div class="form-actions"><button type="submit" data-i18n="addRoute">添加路由</button></div>
         </form>
       </section>
       <section class="card panel">
-        <h2>批量删除</h2>
+        <h2 data-i18n="batchDelete">批量删除</h2>
         <form id="delete-form" class="form-grid">
           <label>
-            KEY（可选）
-            <input name="key" maxlength="256" placeholder="删除整个 KEY 或配合 IP">
+            <span data-i18n="optionalKey">KEY（可选）</span>
+            <input name="key" maxlength="256" placeholder="删除整个 KEY 或配合 IP" data-i18n-placeholder="deleteKeyPlaceholder">
           </label>
           <label>
-            目标 IP（可选）
-            <input name="ip" placeholder="删除所有匹配 IP">
+            <span data-i18n="optionalTargetIp">目标 IP（可选）</span>
+            <input name="ip" placeholder="删除所有匹配 IP" data-i18n-placeholder="deleteIpPlaceholder">
           </label>
-          <p class="hint">至少填写一项；同时填写时只删除该 KEY 下的指定 IP。</p>
-          <div class="form-actions"><button class="danger" type="submit">删除路由</button></div>
+          <p class="hint" data-i18n="deleteHint">至少填写一项；同时填写时只删除该 KEY 下的指定 IP。</p>
+          <div class="form-actions"><button class="danger" type="submit" data-i18n="deleteRoute">删除路由</button></div>
         </form>
       </section>
     </div>
@@ -391,19 +406,25 @@
     <section id="dns-domains" class="list-section workspace-view">
       <div class="list-heading">
         <div>
-          <h2>指定域名 DNS 分流</h2>
-          <p>这些域名及其子域名由 dns-gate 解析，其余域名仍使用 VPN DNS</p>
+          <h2 data-i18n="domainDnsRouting">指定域名 DNS 分流</h2>
+          <p data-i18n="domainDnsRoutingDesc">这些域名及其子域名由 dns-gate 解析，其余域名仍使用 VPN DNS</p>
         </div>
+        <label class="domain-search">
+          <span data-i18n="searchDomains">查找域名</span>
+          <input id="domain-search" type="search" placeholder="输入域名关键字"
+            data-i18n-placeholder="domainSearchPlaceholder">
+        </label>
       </div>
       <div class="card panel">
         <form id="domain-add-form" class="form-grid">
           <label style="grid-column: 1 / -1">
-            批量添加域名
+            <span data-i18n="batchAddDomains">批量添加域名</span>
             <textarea name="domains" rows="5" required
-              placeholder="每行一个域名，也可以使用逗号、分号或空格分隔&#10;例如：&#10;webcool.cn&#10;example.com"></textarea>
+              placeholder="每行一个域名，也可以使用逗号、分号或空格分隔&#10;例如：&#10;webcool.cn&#10;example.com"
+              data-i18n-placeholder="domainsPlaceholder"></textarea>
           </label>
-          <p class="hint">填写父域名即可覆盖它的全部子域名；最多一次添加 4096 个域名。</p>
-          <div class="form-actions"><button type="submit">添加域名</button></div>
+          <p class="hint" data-i18n="domainsHint">填写父域名即可覆盖它的全部子域名；最多一次添加 4096 个域名。</p>
+          <div class="form-actions"><button type="submit" data-i18n="addDomains">添加域名</button></div>
         </form>
       </div>
       <div class="card table-card" style="margin-top: 12px">
@@ -413,16 +434,16 @@
               <tr>
                 <th id="domain-sort-header" aria-sort="ascending">
                   <button id="domain-sort" class="sort-button" type="button">
-                    域名 <span id="domain-sort-indicator" class="sort-indicator">▲</span>
+                    <span data-i18n="domain">域名</span> <span id="domain-sort-indicator" class="sort-indicator">▲</span>
                   </button>
                 </th>
-                <th>匹配范围</th>
+                <th data-i18n="matchScope">匹配范围</th>
                 <th id="created-sort-header" aria-sort="none">
                   <button id="created-sort" class="sort-button" type="button">
-                    添加时间 <span id="created-sort-indicator" class="sort-indicator">↕</span>
+                    <span data-i18n="createdAt">添加时间</span> <span id="created-sort-indicator" class="sort-indicator">↕</span>
                   </button>
                 </th>
-                <th>操作</th>
+                <th data-i18n="actions">操作</th>
               </tr>
             </thead>
             <tbody id="domain-rows">
@@ -431,66 +452,71 @@
           </table>
         </div>
         <div class="pagination">
-          <label class="page-size">每页
-            <select id="domain-page-size" aria-label="域名每页数量">
+          <label class="page-size"><span data-i18n="perPage">每页</span>
+            <select id="domain-page-size" aria-label="域名每页数量" data-i18n-aria-label="domainPageSizeAria">
               <option value="10">10</option>
               <option value="20">20</option>
               <option value="50" selected>50</option>
               <option value="100">100</option>
-            </select>条
+            </select><span data-i18n="itemsUnit">条</span>
           </label>
           <div class="page-buttons">
-            <button id="domain-prev" type="button">上一页</button>
+            <button id="domain-prev" type="button" data-i18n="previous">上一页</button>
             <span id="domain-page-info">第 1 / 1 页</span>
-            <button id="domain-next" type="button">下一页</button>
+            <button id="domain-next" type="button" data-i18n="next">下一页</button>
           </div>
         </div>
       </div>
     </section>
     <section id="global-dns" class="list-section workspace-view">
       <div class="list-heading">
-        <h2>全局 DNS 接管（IANA 一级根域名）</h2>
+        <h2 data-i18n="globalDnsHeading">全局 DNS 接管（IANA 一级根域名）</h2>
         <p id="tld-summary">正在加载 IANA 根区域名列表…</p>
       </div>
       <div class="card panel">
         <div class="tld-toolbar">
           <label>
-            搜索一级根域名
-            <input id="tld-search" type="search" placeholder="例如 com、cn、net">
+            <span data-i18n="searchTld">搜索一级根域名</span>
+            <input id="tld-search" type="search" placeholder="例如 com、cn、net" data-i18n-placeholder="tldSearchPlaceholder">
           </label>
           <div class="tld-buttons">
-            <button id="add-selected-tlds" type="button" disabled>添加选中项</button>
-            <button id="delete-selected-tlds" class="danger" type="button" disabled>删除选中项</button>
-            <button id="add-all-tlds" type="button" disabled>添加全部未配置 TLD</button>
+            <button id="add-selected-tlds" type="button" disabled data-i18n="addSelected">添加选中项</button>
+            <button id="delete-selected-tlds" class="danger" type="button" disabled data-i18n="deleteSelected">删除选中项</button>
+            <button id="add-all-tlds" type="button" disabled data-i18n="addAllMissingTlds">添加全部未配置 TLD</button>
           </div>
         </div>
         <div class="hot-tld-section">
-          <div class="hot-tld-title">常用 TLD</div>
+          <div class="hot-tld-title" data-i18n="popularTlds">常用 TLD</div>
           <div id="hot-tld-list" class="hot-tld-row">
             <div class="tld-empty">正在加载…</div>
           </div>
         </div>
         <label class="tld-selection">
           <input id="tld-select-all" type="checkbox">
-          选择当前搜索结果中的全部 TLD
+          <span data-i18n="selectAllTlds">选择当前搜索结果中的全部 TLD</span>
         </label>
         <div class="tld-scroll">
           <div id="tld-list" class="tld-grid">
             <div class="tld-empty">正在加载…</div>
           </div>
         </div>
-        <p class="hint" style="margin-top: 12px">
+        <p class="hint" style="margin-top: 12px" data-i18n="globalDnsHint">
           添加全部 IANA TLD 后，所有公共 DNS 根区域名都将由 dns-gate 解析；私有后缀、单标签主机名和 mDNS 不在此范围内。
         </p>
       </div>
     </section>
     <section id="memory-routes" class="list-section workspace-view">
       <div class="list-heading">
-        <h2>服务内存路由</h2>
+        <h2 data-i18n="memoryRoutes">服务内存路由</h2>
         <div class="list-actions">
           <p id="summary">正在加载路由列表…</p>
+          <label class="route-search">
+            <span data-i18n="searchManagedRoutes">查找路由</span>
+            <input id="route-search" type="search" placeholder="域名、KEY、IP 或网关"
+              data-i18n-placeholder="managedRouteSearchPlaceholder">
+          </label>
           <button id="add-selected-domains" class="small" type="button" disabled>
-            添加选中域名至系统 DNS
+            <span data-i18n="addSelectedDomainsToDns">添加选中域名至系统 DNS</span>
           </button>
         </div>
       </div>
@@ -501,21 +527,21 @@
               <tr>
                 <th id="key-sort-header" aria-sort="ascending">
                   <span class="route-key-layout">
-                    <input id="route-select-all" type="checkbox" aria-label="选择全部未配置的根域名">
+                    <input id="route-select-all" type="checkbox" aria-label="选择全部未配置的根域名" data-i18n-aria-label="selectAllUnconfiguredDomains">
                     <button id="key-sort" class="sort-button" type="button">
-                      根域名 <span id="key-sort-indicator" class="sort-indicator">▲</span>
+                      <span data-i18n="rootDomain">根域名</span> <span id="key-sort-indicator" class="sort-indicator">▲</span>
                     </button>
                   </span>
                 </th>
-                <th>目标 IP</th>
-                <th>网关</th>
+                <th data-i18n="targetIp">目标 IP</th>
+                <th data-i18n="gateway">网关</th>
                 <th>TTL</th>
                 <th id="expiration-sort-header" aria-sort="none">
                   <button id="expiration-sort" class="sort-button" type="button">
-                    过期时间 <span id="expiration-sort-indicator" class="sort-indicator">↕</span>
+                    <span data-i18n="expiresAt">过期时间</span> <span id="expiration-sort-indicator" class="sort-indicator">↕</span>
                   </button>
                 </th>
-                <th>操作</th>
+                <th data-i18n="actions">操作</th>
               </tr>
             </thead>
             <tbody id="route-rows">
@@ -524,36 +550,43 @@
           </table>
         </div>
         <div class="pagination">
-          <label class="page-size">每页
-            <select id="route-page-size" aria-label="内存路由每页数量">
+          <label class="page-size"><span data-i18n="perPage">每页</span>
+            <select id="route-page-size" aria-label="内存路由每页数量" data-i18n-aria-label="memoryPageSizeAria">
               <option value="10">10</option>
               <option value="20">20</option>
               <option value="50" selected>50</option>
               <option value="100">100</option>
-            </select>个 KEY
+            </select><span data-i18n="keyUnit">个 KEY</span>
           </label>
           <div class="page-buttons">
-            <button id="route-prev" type="button">上一页</button>
+            <button id="route-prev" type="button" data-i18n="previous">上一页</button>
             <span id="route-page-info">第 1 / 1 页</span>
-            <button id="route-next" type="button">下一页</button>
+            <button id="route-next" type="button" data-i18n="next">下一页</button>
           </div>
         </div>
       </div>
     </section>
     <section id="system-routes-panel" class="list-section workspace-view">
       <div class="list-heading">
-        <h2>系统静态主机路由</h2>
-        <p id="system-summary">正在直接读取系统路由表…</p>
+        <h2 data-i18n="systemStaticRoutes">系统静态主机路由</h2>
+        <div class="list-actions">
+          <p id="system-summary">正在直接读取系统路由表…</p>
+          <label class="route-search">
+            <span data-i18n="searchSystemRoutes">查找系统路由</span>
+            <input id="system-route-search" type="search" placeholder="IP、网关或网络接口"
+              data-i18n-placeholder="systemRouteSearchPlaceholder">
+          </label>
+        </div>
       </div>
       <div class="card table-card">
         <div class="table-scroll">
           <table>
             <thead>
               <tr>
-                <th>目标 IP</th>
-                <th>网关</th>
-                <th>网络接口</th>
-                <th>操作</th>
+                <th data-i18n="targetIp">目标 IP</th>
+                <th data-i18n="gateway">网关</th>
+                <th data-i18n="networkInterface">网络接口</th>
+                <th data-i18n="actions">操作</th>
               </tr>
             </thead>
             <tbody id="system-route-rows">
@@ -562,18 +595,18 @@
           </table>
         </div>
         <div class="pagination">
-          <label class="page-size">每页
-            <select id="system-page-size" aria-label="系统路由每页数量">
+          <label class="page-size"><span data-i18n="perPage">每页</span>
+            <select id="system-page-size" aria-label="系统路由每页数量" data-i18n-aria-label="systemPageSizeAria">
               <option value="10">10</option>
               <option value="20">20</option>
               <option value="50" selected>50</option>
               <option value="100">100</option>
-            </select>条
+            </select><span data-i18n="itemsUnit">条</span>
           </label>
           <div class="page-buttons">
-            <button id="system-prev" type="button">上一页</button>
+            <button id="system-prev" type="button" data-i18n="previous">上一页</button>
             <span id="system-page-info">第 1 / 1 页</span>
-            <button id="system-next" type="button">下一页</button>
+            <button id="system-next" type="button" data-i18n="next">下一页</button>
           </div>
         </div>
       </div>
@@ -582,11 +615,181 @@
     </main>
   </div>
   <script>
+    const translations = {
+      "zh-CN": {
+        sidebarAria: "功能导航", brandSubtitle: "路由与 DNS 分流控制台",
+        routeActions: "路由操作", routeActionsDesc: "添加或批量删除指定 KEY 的主机路由",
+        domainDns: "指定域名 DNS", domainDnsDesc: "管理由 dns-gate 接管的指定域名",
+        globalDns: "全局 DNS 接管", globalDnsDesc: "通过 IANA 一级根域名接管所有公共 DNS 查询",
+        memoryRoutes: "服务内存路由", memoryRoutesDesc: "查看、折叠和删除 ip-router 管理的路由",
+        systemRoutes: "系统静态路由", systemRoutesDesc: "直接查看和删除操作系统中的静态主机路由",
+        domainJsonApi: "域名 JSON API", memoryJsonApi: "内存路由 JSON API",
+        systemJsonApi: "系统路由 JSON API", refresh: "刷新", addRoute: "添加路由",
+        keyPlaceholder: "例如 dns.google", targetIp: "目标 IP", ipsPlaceholder: "多个 IP 用逗号或空格分隔",
+        gatewayIp: "网关 IP", gatewayPlaceholder: "例如 192.168.1.1", ttlSeconds: "TTL（秒）",
+        ttlHint: "TTL 为 0 表示永久；同一 KEY 可以一次添加多个目标 IP。",
+        batchDelete: "批量删除", optionalKey: "KEY（可选）", deleteKeyPlaceholder: "删除整个 KEY 或配合 IP",
+        optionalTargetIp: "目标 IP（可选）", deleteIpPlaceholder: "删除所有匹配 IP",
+        deleteHint: "至少填写一项；同时填写时只删除该 KEY 下的指定 IP。", deleteRoute: "删除路由",
+        domainDnsRouting: "指定域名 DNS 分流",
+        domainDnsRoutingDesc: "这些域名及其子域名由 dns-gate 解析，其余域名仍使用 VPN DNS",
+        searchDomains: "查找域名", domainSearchPlaceholder: "输入部分字符或多个关键字",
+        noDomainMatches: "没有匹配的域名",
+        batchAddDomains: "批量添加域名",
+        domainsPlaceholder: "每行一个域名，也可以使用逗号、分号或空格分隔\n例如：\nwebcool.cn\nexample.com",
+        domainsHint: "填写父域名即可覆盖它的全部子域名；最多一次添加 4096 个域名。",
+        addDomains: "添加域名", domain: "域名", matchScope: "匹配范围", createdAt: "添加时间",
+        actions: "操作", perPage: "每页", itemsUnit: "条", keyUnit: "个 KEY",
+        previous: "上一页", next: "下一页", domainPageSizeAria: "域名每页数量",
+        memoryPageSizeAria: "内存路由每页数量", systemPageSizeAria: "系统路由每页数量",
+        globalDnsHeading: "全局 DNS 接管（IANA 一级根域名）", searchTld: "搜索一级根域名",
+        tldSearchPlaceholder: "例如 com、cn、net", addSelected: "添加选中项", deleteSelected: "删除选中项",
+        addAllMissingTlds: "添加全部未配置 TLD", popularTlds: "常用 TLD",
+        selectAllTlds: "选择当前搜索结果中的全部 TLD",
+        globalDnsHint: "添加全部 IANA TLD 后，所有公共 DNS 根区域名都将由 dns-gate 解析；私有后缀、单标签主机名和 mDNS 不在此范围内。",
+        addSelectedDomainsToDns: "添加选中域名至系统 DNS", selectAllUnconfiguredDomains: "选择全部未配置的根域名",
+        searchManagedRoutes: "查找路由", managedRouteSearchPlaceholder: "域名、KEY、IP 或网关",
+        noManagedRouteMatches: "没有匹配的服务内存路由",
+        rootDomain: "根域名", gateway: "网关", expiresAt: "过期时间", systemStaticRoutes: "系统静态主机路由",
+        searchSystemRoutes: "查找系统路由", systemRouteSearchPlaceholder: "IP、网关或网络接口",
+        noSystemRouteMatches: "没有匹配的系统静态路由", networkInterface: "网络接口",
+        loading: "正在加载…", unknownError: "未知错误",
+        secondsRemaining: "{ttl} 秒（剩余 {remaining} 秒）", permanent: "永久", delete: "删除",
+        deleteAll: "删除全部", deleteFromSystem: "从系统删除", configured: "已配置",
+        pageInfo: "第 {page} / {pages} 页，共 {count} {unit}", defaultUnit: "条",
+        confirmDeleteDomain: "确定删除域名 {domain} 的 DNS 分流配置吗？",
+        domainDeletedRefreshFailed: "域名已删除，但系统 DNS 刷新失败：{error}", domainDeleted: "域名已删除",
+        domainDeleteFailed: "域名删除失败：{error}", confirmDeleteRoute: "确定删除 {key} 下的 {ip} 路由吗？",
+        routeDeleted: "路由已删除", deleteFailed: "删除失败：{error}",
+        confirmDeleteGroup: "确定删除 {key} 分组下的全部 {count} 条路由吗？",
+        deleteComplete: "删除完成：成功 {succeeded}/{count} 条",
+        deleteCompleteWithError: "删除完成：成功 {succeeded}/{count} 条；{error}",
+        confirmSystemDelete: "确定从系统路由表删除 {ip}（网关 {gateway}）吗？",
+        systemRouteDeleted: "系统路由已删除", systemRouteDeleteFailed: "系统路由删除失败：{error}",
+        noDnsDomains: "尚未添加 DNS 分流域名", domainAndSubdomains: "{domain} 及其全部子域名",
+        domainListLoadFailed: "域名列表加载失败：{error}", selectConfiguredTld: "选择已配置的 {tld}",
+        selectTld: "选择 {tld}", noPopularTlds: "尚未加载常用 TLD", noTldList: "尚未加载 TLD 列表",
+        noOtherTldMatches: "没有匹配的其他 TLD", rootZoneList: "IANA 根区清单",
+        tldSummary: "{version}；共 {count} 个 TLD，已配置 {configured} 个",
+        addSelectedTldCount: "添加选中的 {count} 个 TLD", deleteSelectedTldCount: "删除选中的 {count} 个 TLD",
+        addAllTldCount: "添加全部 {count} 个未配置 TLD", allTldsConfigured: "全部 TLD 已配置",
+        tldListLoadFailed: "IANA 根区域名列表加载失败", loadFailed: "加载失败：{error}",
+        addSelectedDomainCount: "添加选中的 {count} 个根域名至系统 DNS", noRoutes: "尚未设置路由",
+        configuredToSystemDns: "{domain} 已配置到系统 DNS", selectRootDomain: "选择根域名 {domain}",
+        collapseKey: "折叠 {key}", expandKey: "展开 {key}", ipCount: "{count} 个 IP",
+        gatewayCount: "{count} 个网关", clickToExpand: "点击展开查看", earliest: "最早 {time}",
+        allPermanent: "全部永久", routeSummary: "共 {groups} 个根域名/KEY，{routes} 条路由",
+        filteredRouteSummary: "找到 {groups} 个根域名/KEY、{routes} 条路由（共 {total} 个分组）",
+        routeListLoadFailed: "路由列表加载失败", noSystemRoutes: "系统中没有匹配的静态主机路由",
+        systemRouteSummary: "从系统路由表读取到 {count} 条静态主机路由",
+        filteredSystemRouteSummary: "找到 {count} 条系统静态路由（共 {total} 条）",
+        systemRouteListLoadFailed: "系统路由表加载失败", reloading: "正在从服务器重新加载…",
+        reloadingTlds: "正在从服务器重新加载 IANA 根区域名列表…",
+        reloadingRoutes: "正在从服务器重新加载路由列表…", reloadingSystemRoutes: "正在从服务器重新读取系统路由表…",
+        addComplete: "添加完成：成功 {succeeded}/{count} 条", addFailed: "添加失败：{error}",
+        domainAddComplete: "域名添加完成：成功 {succeeded}/{count} 个", dnsRefreshed: "，系统 DNS 已刷新",
+        dnsRefreshFailed: "，但系统 DNS 刷新失败：{error}", domainAddFailed: "域名添加失败：{error}",
+        deleteNeedsKeyOrIp: "删除时至少需要填写 KEY 或目标 IP", confirmDeleteMatches: "确定删除所有匹配的路由吗？",
+        writingDns: "正在写入并刷新 DNS…", tldConfigComplete: "TLD 配置完成：成功 {succeeded}/{count} 个",
+        dnsActive: "，系统 DNS 已自动生效", refreshFailed: "，但刷新失败：{error}", tldConfigFailed: "TLD 配置失败：{error}",
+        confirmAddTlds: "确定将选中的 {count} 个一级根域名加入 /etc/resolver 吗？",
+        confirmDeleteTlds: "确定从 /etc/resolver 删除选中的 {count} 个一级根域名吗？",
+        deletingDns: "正在删除并刷新 DNS…", tldDeleteComplete: "TLD 删除完成：成功 {succeeded}/{count} 个",
+        tldDeleteFailed: "TLD 删除失败：{error}", confirmAddAllTlds: "即将创建 {count} 个 /etc/resolver 文件，并让 dns-gate 接管所有公共 DNS 域名。确定继续吗？",
+        confirmAddRootDomains: "确定将选中的 {count} 个根域名添加至系统 DNS 吗？",
+        systemDnsComplete: "系统 DNS 配置完成：成功 {succeeded}/{count} 个", activeNow: "，已自动生效",
+        systemDnsFailed: "系统 DNS 配置失败：{error}", switchLanguage: "Switch to English"
+      },
+      "en-US": {
+        sidebarAria: "Feature navigation", brandSubtitle: "Routing and DNS split-tunneling console",
+        routeActions: "Route Actions", routeActionsDesc: "Add or batch-delete host routes for a KEY",
+        domainDns: "Domain DNS", domainDnsDesc: "Manage domains resolved by dns-gate",
+        globalDns: "Global DNS", globalDnsDesc: "Route public DNS queries by IANA top-level domains",
+        memoryRoutes: "Managed Routes", memoryRoutesDesc: "View, expand, and delete routes managed by ip-router",
+        systemRoutes: "System Routes", systemRoutesDesc: "View and delete static host routes in the operating system",
+        domainJsonApi: "Domain JSON API", memoryJsonApi: "Managed Routes JSON API", systemJsonApi: "System Routes JSON API",
+        refresh: "Refresh", addRoute: "Add Route", keyPlaceholder: "e.g. dns.google", targetIp: "Target IP",
+        ipsPlaceholder: "Separate multiple IPs with commas or spaces", gatewayIp: "Gateway IP",
+        gatewayPlaceholder: "e.g. 192.168.1.1", ttlSeconds: "TTL (seconds)",
+        ttlHint: "TTL 0 means permanent; multiple target IPs can be added to one KEY at once.",
+        batchDelete: "Batch Delete", optionalKey: "KEY (optional)", deleteKeyPlaceholder: "Delete the entire KEY or combine with an IP",
+        optionalTargetIp: "Target IP (optional)", deleteIpPlaceholder: "Delete every matching IP",
+        deleteHint: "Enter at least one field; with both fields, only that IP under the KEY is deleted.", deleteRoute: "Delete Route",
+        domainDnsRouting: "Domain DNS Routing", domainDnsRoutingDesc: "These domains and subdomains use dns-gate; all others keep using VPN DNS",
+        searchDomains: "Find Domains", domainSearchPlaceholder: "Enter partial text or multiple keywords",
+        noDomainMatches: "No matching domains",
+        batchAddDomains: "Add Domains in Batch", domainsPlaceholder: "One domain per line, or separate with commas, semicolons, or spaces\nExample:\nwebcool.cn\nexample.com",
+        domainsHint: "A parent domain covers all its subdomains; up to 4,096 domains per request.", addDomains: "Add Domains",
+        domain: "Domain", matchScope: "Match Scope", createdAt: "Added At", actions: "Actions", perPage: "Per page",
+        itemsUnit: "items", keyUnit: "KEYs", previous: "Previous", next: "Next", domainPageSizeAria: "Domains per page",
+        memoryPageSizeAria: "Managed routes per page", systemPageSizeAria: "System routes per page",
+        globalDnsHeading: "Global DNS Routing (IANA TLDs)", searchTld: "Search top-level domains",
+        tldSearchPlaceholder: "e.g. com, cn, net", addSelected: "Add Selected", deleteSelected: "Delete Selected",
+        addAllMissingTlds: "Add All Unconfigured TLDs", popularTlds: "Popular TLDs", selectAllTlds: "Select all TLDs in current search results",
+        globalDnsHint: "After all IANA TLDs are added, dns-gate resolves all public DNS root zones; private suffixes, single-label hosts, and mDNS are excluded.",
+        addSelectedDomainsToDns: "Add Selected Domains to System DNS", selectAllUnconfiguredDomains: "Select all unconfigured root domains",
+        searchManagedRoutes: "Find Routes", managedRouteSearchPlaceholder: "Domain, KEY, IP, or gateway",
+        noManagedRouteMatches: "No matching managed routes",
+        rootDomain: "Root Domain", gateway: "Gateway", expiresAt: "Expires At", systemStaticRoutes: "System Static Host Routes",
+        searchSystemRoutes: "Find System Routes", systemRouteSearchPlaceholder: "IP, gateway, or network interface",
+        noSystemRouteMatches: "No matching system static routes", networkInterface: "Network Interface",
+        loading: "Loading…", unknownError: "Unknown error",
+        secondsRemaining: "{ttl} sec ({remaining} sec remaining)", permanent: "Permanent", delete: "Delete", deleteAll: "Delete All",
+        deleteFromSystem: "Delete from System", configured: "Configured", pageInfo: "Page {page} / {pages}, {count} {unit} total",
+        defaultUnit: "items", confirmDeleteDomain: "Delete the DNS routing configuration for {domain}?",
+        domainDeletedRefreshFailed: "Domain deleted, but system DNS refresh failed: {error}", domainDeleted: "Domain deleted",
+        domainDeleteFailed: "Failed to delete domain: {error}", confirmDeleteRoute: "Delete route {ip} under {key}?",
+        routeDeleted: "Route deleted", deleteFailed: "Delete failed: {error}",
+        confirmDeleteGroup: "Delete all {count} routes in group {key}?", deleteComplete: "Deleted {succeeded}/{count} routes",
+        deleteCompleteWithError: "Deleted {succeeded}/{count} routes; {error}", confirmSystemDelete: "Delete {ip} (gateway {gateway}) from the system route table?",
+        systemRouteDeleted: "System route deleted", systemRouteDeleteFailed: "Failed to delete system route: {error}",
+        noDnsDomains: "No DNS routing domains have been added", domainAndSubdomains: "{domain} and all its subdomains",
+        domainListLoadFailed: "Failed to load domain list: {error}", selectConfiguredTld: "Select configured TLD {tld}", selectTld: "Select {tld}",
+        noPopularTlds: "Popular TLDs are not loaded", noTldList: "TLD list is not loaded", noOtherTldMatches: "No other matching TLDs",
+        rootZoneList: "IANA root zone list", tldSummary: "{version}; {count} TLDs, {configured} configured",
+        addSelectedTldCount: "Add {count} Selected TLDs", deleteSelectedTldCount: "Delete {count} Selected TLDs",
+        addAllTldCount: "Add All {count} Unconfigured TLDs", allTldsConfigured: "All TLDs Configured",
+        tldListLoadFailed: "Failed to load IANA TLD list", loadFailed: "Load failed: {error}",
+        addSelectedDomainCount: "Add {count} Root Domains to System DNS", noRoutes: "No routes configured",
+        configuredToSystemDns: "{domain} is configured in system DNS", selectRootDomain: "Select root domain {domain}",
+        collapseKey: "Collapse {key}", expandKey: "Expand {key}", ipCount: "{count} IPs", gatewayCount: "{count} gateways",
+        clickToExpand: "Click to expand", earliest: "Earliest {time}", allPermanent: "All permanent",
+        routeSummary: "{groups} root domains/KEYs, {routes} routes", routeListLoadFailed: "Failed to load route list",
+        filteredRouteSummary: "Found {groups} root domains/KEYs and {routes} routes ({total} groups total)",
+        noSystemRoutes: "No matching static host routes in the system", systemRouteSummary: "Read {count} static host routes from the system route table",
+        filteredSystemRouteSummary: "Found {count} system static routes ({total} total)",
+        systemRouteListLoadFailed: "Failed to load system route table", reloading: "Reloading from server…",
+        reloadingTlds: "Reloading the IANA TLD list from server…", reloadingRoutes: "Reloading route list from server…",
+        reloadingSystemRoutes: "Reading the system route table again…", addComplete: "Added {succeeded}/{count} routes",
+        addFailed: "Add failed: {error}", domainAddComplete: "Added {succeeded}/{count} domains", dnsRefreshed: "; system DNS refreshed",
+        dnsRefreshFailed: "; system DNS refresh failed: {error}", domainAddFailed: "Failed to add domains: {error}",
+        deleteNeedsKeyOrIp: "Enter a KEY or target IP to delete", confirmDeleteMatches: "Delete all matching routes?",
+        writingDns: "Writing and refreshing DNS…", tldConfigComplete: "Configured {succeeded}/{count} TLDs", dnsActive: "; system DNS is active",
+        refreshFailed: "; refresh failed: {error}", tldConfigFailed: "Failed to configure TLDs: {error}",
+        confirmAddTlds: "Add the selected {count} TLDs to /etc/resolver?", confirmDeleteTlds: "Delete the selected {count} TLDs from /etc/resolver?",
+        deletingDns: "Deleting and refreshing DNS…", tldDeleteComplete: "Deleted {succeeded}/{count} TLDs", tldDeleteFailed: "Failed to delete TLDs: {error}",
+        confirmAddAllTlds: "This will create {count} /etc/resolver files and make dns-gate handle all public DNS domains. Continue?",
+        confirmAddRootDomains: "Add the selected {count} root domains to system DNS?", systemDnsComplete: "Configured {succeeded}/{count} system DNS domains",
+        activeNow: "; now active", systemDnsFailed: "System DNS configuration failed: {error}", switchLanguage: "切换至中文"
+      }
+    };
+    let currentLanguage = localStorage.getItem("ip-router-language") === "en-US" ? "en-US" : "zh-CN";
+
+    function t(key, parameters = {}) {
+      const table = translations[currentLanguage] || translations["zh-CN"];
+      const template = table[key] || translations["zh-CN"][key] || key;
+      return String(template).replace(/\{(\w+)\}/g, (_, name) =>
+        parameters[name] === undefined ? `{${name}}` : String(parameters[name]));
+    }
+
     const summary = document.getElementById("summary");
     const rows = document.getElementById("route-rows");
+    const routeSearch = document.getElementById("route-search");
     const systemSummary = document.getElementById("system-summary");
     const systemRows = document.getElementById("system-route-rows");
+    const systemRouteSearch = document.getElementById("system-route-search");
     const domainRows = document.getElementById("domain-rows");
+    const domainSearch = document.getElementById("domain-search");
     const notice = document.getElementById("notice");
     const tldSummary = document.getElementById("tld-summary");
     const hotTldList = document.getElementById("hot-tld-list");
@@ -624,7 +827,7 @@
       sortDirection: "asc",
       expandedKeys: new Set(),
       selectedDomains: new Set(),
-      unit: "个 KEY",
+      unitKey: "keyUnit",
       pageSizeElement: document.getElementById("route-page-size"),
       previous: document.getElementById("route-prev"),
       next: document.getElementById("route-next"),
@@ -641,6 +844,41 @@
       next: document.getElementById("system-next"),
       info: document.getElementById("system-page-info")
     };
+    const languageSwitch = document.getElementById("language-switch");
+
+    function applyTranslations() {
+      document.documentElement.lang = currentLanguage;
+      document.querySelectorAll("[data-i18n]").forEach((element) => {
+        element.textContent = t(element.dataset.i18n);
+      });
+      document.querySelectorAll("[data-i18n-placeholder]").forEach((element) => {
+        element.placeholder = t(element.dataset.i18nPlaceholder);
+      });
+      document.querySelectorAll("[data-i18n-aria-label]").forEach((element) => {
+        element.setAttribute("aria-label", t(element.dataset.i18nAriaLabel));
+      });
+      languageSwitch.textContent = currentLanguage === "zh-CN" ? "EN" : "中文";
+      languageSwitch.setAttribute("aria-label", t("switchLanguage"));
+    }
+
+    function refreshTranslatedViews() {
+      const active = document.querySelector(".workspace-view.active");
+      if (active) activateWorkspace(active.id, false);
+      renderDomainPage();
+      renderTlds();
+      renderRoutePage();
+      renderSystemRoutePage();
+      updateRouteCountdowns();
+    }
+
+    languageSwitch.addEventListener("click", () => {
+      currentLanguage = currentLanguage === "zh-CN" ? "en-US" : "zh-CN";
+      localStorage.setItem("ip-router-language", currentLanguage);
+      notice.textContent = "";
+      notice.className = "notice";
+      applyTranslations();
+      refreshTranslatedViews();
+    });
 
     function addCell(row, value, className, code) {
       const cell = document.createElement("td");
@@ -656,7 +894,7 @@
       const expiresAt = Number(cell.dataset.expiresAt || 0);
       const ttl = Number(cell.dataset.ttl || 0);
       const remaining = Math.max(0, Math.ceil(expiresAt - now));
-      cell.textContent = `${ttl} 秒（剩余 ${remaining} 秒）`;
+      cell.textContent = t("secondsRemaining", { ttl, remaining });
     }
 
     function addRouteTtlCell(row, target) {
@@ -666,7 +904,7 @@
         cell.dataset.expiresAt = String(target.expires_at);
         updateCountdownCell(cell);
       } else {
-        addCell(row, "永久", "permanent");
+        addCell(row, t("permanent"), "permanent");
       }
     }
 
@@ -741,20 +979,20 @@
       const button = document.createElement("button");
       button.type = "button";
       button.className = "danger small";
-      button.textContent = "删除";
+      button.textContent = t("delete");
       button.addEventListener("click", async () => {
-        if (!window.confirm(`确定删除域名 ${domain} 的 DNS 分流配置吗？`)) return;
+        if (!window.confirm(t("confirmDeleteDomain", { domain }))) return;
         button.disabled = true;
         try {
           const data = await domainRequest("DELETE", domain);
           showNotice(data.system_refreshed === false
-            ? `域名已删除，但系统 DNS 刷新失败：${data.refresh_error || "未知错误"}`
-            : (data.message || "域名已删除"),
+            ? t("domainDeletedRefreshFailed", { error: data.refresh_error || t("unknownError") })
+            : t("domainDeleted"),
           data.system_refreshed === false ? "warning" : "success");
           await loadDomains();
           await loadRoutes();
         } catch (error) {
-          showNotice(`域名删除失败：${error.message}`, "error");
+          showNotice(t("domainDeleteFailed", { error: error.message }), "error");
         } finally {
           button.disabled = false;
         }
@@ -768,16 +1006,16 @@
       const button = document.createElement("button");
       button.type = "button";
       button.className = "danger small";
-      button.textContent = "删除";
+      button.textContent = t("delete");
       button.addEventListener("click", async () => {
-        if (!window.confirm(`确定删除 ${key} 下的 ${ip} 路由吗？`)) return;
+        if (!window.confirm(t("confirmDeleteRoute", { key, ip }))) return;
         button.disabled = true;
         try {
           const data = await routeRequest("DELETE", { key, ip });
-          showNotice(data.message || "路由已删除", data.success ? "success" : "warning");
+          showNotice(t("routeDeleted"), data.success ? "success" : "warning");
           await loadAllRoutes();
         } catch (error) {
-          showNotice(`删除失败：${error.message}`, "error");
+          showNotice(t("deleteFailed", { error: error.message }), "error");
         } finally {
           button.disabled = false;
         }
@@ -791,9 +1029,9 @@
       const button = document.createElement("button");
       button.type = "button";
       button.className = "danger small";
-      button.textContent = "删除全部";
+      button.textContent = t("deleteAll");
       button.addEventListener("click", async () => {
-        if (!window.confirm(`确定删除 ${group.key} 分组下的全部 ${group.targets.length} 条路由吗？`)) return;
+        if (!window.confirm(t("confirmDeleteGroup", { key: group.key, count: group.targets.length }))) return;
         button.disabled = true;
         const uniqueTargets = [];
         const seen = new Set();
@@ -820,8 +1058,8 @@
         routePager.expandedKeys.delete(group.key);
         showNotice(
           errors.length === 0
-            ? `删除完成：成功 ${succeeded}/${uniqueTargets.length} 条`
-            : `删除完成：成功 ${succeeded}/${uniqueTargets.length} 条；${errors[0]}`,
+            ? t("deleteComplete", { succeeded, count: uniqueTargets.length })
+            : t("deleteCompleteWithError", { succeeded, count: uniqueTargets.length, error: errors[0] }),
           errors.length === 0 ? "success" : succeeded > 0 ? "warning" : "error"
         );
         await loadAllRoutes();
@@ -836,16 +1074,16 @@
       const button = document.createElement("button");
       button.type = "button";
       button.className = "danger small";
-      button.textContent = "从系统删除";
+      button.textContent = t("deleteFromSystem");
       button.addEventListener("click", async () => {
-        if (!window.confirm(`确定从系统路由表删除 ${ip}（网关 ${gateway}）吗？`)) return;
+        if (!window.confirm(t("confirmSystemDelete", { ip, gateway }))) return;
         button.disabled = true;
         try {
           const data = await routeRequest("DELETE", { ip, gateway }, "/system-route");
-          showNotice(data.message || "系统路由已删除", "success");
+          showNotice(t("systemRouteDeleted"), "success");
           await loadAllRoutes();
         } catch (error) {
-          showNotice(`系统路由删除失败：${error.message}`, "error");
+          showNotice(t("systemRouteDeleteFailed", { error: error.message }), "error");
         } finally {
           button.disabled = false;
         }
@@ -854,18 +1092,23 @@
       row.appendChild(cell);
     }
 
-    function updatePager(pager) {
-      const pageCount = Math.max(1, Math.ceil(pager.items.length / pager.pageSize));
+    function updatePager(pager, itemCount = pager.items.length) {
+      const pageCount = Math.max(1, Math.ceil(itemCount / pager.pageSize));
       pager.page = Math.min(Math.max(1, pager.page), pageCount);
-      pager.info.textContent = `第 ${pager.page} / ${pageCount} 页，共 ${pager.items.length} ${pager.unit || "条"}`;
+      pager.info.textContent = t("pageInfo", {
+        page: pager.page,
+        pages: pageCount,
+        count: itemCount,
+        unit: t(pager.unitKey || "defaultUnit")
+      });
       pager.previous.disabled = pager.page <= 1;
       pager.next.disabled = pager.page >= pageCount;
     }
 
-    function currentPageItems(pager) {
-      updatePager(pager);
+    function currentPageItems(pager, items = pager.items) {
+      updatePager(pager, items.length);
       const start = (pager.page - 1) * pager.pageSize;
-      return pager.items.slice(start, start + pager.pageSize);
+      return items.slice(start, start + pager.pageSize);
     }
 
     function compareDomainItems(left, right) {
@@ -901,20 +1144,67 @@
       renderDomainPage();
     }
 
+    function fuzzyTokenMatches(value, token) {
+      const source = String(value || "").toLowerCase();
+      const normalizedToken = String(token || "").toLowerCase();
+      if (!normalizedToken) return true;
+      if (source.includes(normalizedToken)) return true;
+      const compactSource = source.replace(/[._-]/g, "");
+      const compactToken = normalizedToken.replace(/[._-]/g, "");
+      if (compactSource.includes(compactToken)) return true;
+      // 带域名或 IP 分隔符的查询不做非连续匹配，避免产生大量无关结果。
+      if (/[._-]/.test(normalizedToken)) return false;
+      let sourceIndex = 0;
+      for (const character of compactToken) {
+        sourceIndex = compactSource.indexOf(character, sourceIndex);
+        if (sourceIndex < 0) return false;
+        sourceIndex += 1;
+      }
+      return compactToken.length > 0;
+    }
+
+    function queryTokens(query) {
+      return String(query || "").trim().toLowerCase().split(/\s+/).filter(Boolean);
+    }
+
+    function fuzzyTextMatches(value, query) {
+      return queryTokens(query).every((token) => fuzzyTokenMatches(value, token));
+    }
+
+    function fuzzyFieldsMatch(values, query) {
+      const fields = values.filter((value) => value !== null && value !== undefined
+        && String(value).length > 0);
+      return queryTokens(query).every((token) =>
+        fields.some((field) => fuzzyTokenMatches(field, token))
+      );
+    }
+
+    function filteredDomainItems() {
+      const query = domainSearch.value.trim();
+      if (!query) return domainPager.items;
+      return domainPager.items.filter((item) =>
+        fuzzyTextMatches(item.domain, query));
+    }
+
     function renderDomainPage() {
       domainRows.replaceChildren();
       if (domainPager.items.length === 0) {
         updatePager(domainPager);
-        showDomainMessage("尚未添加 DNS 分流域名");
+        showDomainMessage(t("noDnsDomains"));
         return;
       }
-      updatePager(domainPager);
+      const filteredItems = filteredDomainItems();
+      updatePager(domainPager, filteredItems.length);
+      if (filteredItems.length === 0) {
+        showDomainMessage(t("noDomainMatches"));
+        return;
+      }
       const start = (domainPager.page - 1) * domainPager.pageSize;
-      domainPager.items.slice().sort(compareDomainItems)
+      filteredItems.slice().sort(compareDomainItems)
         .slice(start, start + domainPager.pageSize).forEach((item) => {
           const row = document.createElement("tr");
           addCell(row, item.domain || "", "", true);
-          addCell(row, `${item.domain} 及其全部子域名`);
+          addCell(row, t("domainAndSubdomains", { domain: item.domain }));
           const timestamp = Number(item.created_at || 0);
           addCell(row, timestamp > 0
             ? new Date(timestamp * 1000).toLocaleString() : "—");
@@ -932,12 +1222,12 @@
         renderDomainPage();
         renderTlds();
       } catch (error) {
-        showDomainMessage(`域名列表加载失败：${error.message}`);
+        showDomainMessage(t("domainListLoadFailed", { error: error.message }));
       }
     }
 
     function compareText(left, right) {
-      return String(left).localeCompare(String(right), "zh-CN", {
+      return String(left).localeCompare(String(right), currentLanguage, {
         numeric: true,
         sensitivity: "base"
       });
@@ -1004,7 +1294,7 @@
       checkbox.type = "checkbox";
       checkbox.checked = tldState.selected.has(tld);
       checkbox.setAttribute("aria-label", isConfigured
-        ? `选择已配置的 ${tld}` : `选择 ${tld}`);
+        ? t("selectConfiguredTld", { tld }) : t("selectTld", { tld }));
       checkbox.addEventListener("change", () => {
         if (checkbox.checked) tldState.selected.add(tld);
         else tldState.selected.delete(tld);
@@ -1017,7 +1307,7 @@
       if (isConfigured) {
         const badge = document.createElement("span");
         badge.className = "configured-badge";
-        badge.textContent = "已配置";
+        badge.textContent = t("configured");
         label.appendChild(badge);
       }
       return label;
@@ -1043,7 +1333,7 @@
       if (availablePopularTlds.length === 0) {
         const empty = document.createElement("div");
         empty.className = "tld-empty";
-        empty.textContent = "尚未加载常用 TLD";
+        empty.textContent = t("noPopularTlds");
         hotTldList.appendChild(empty);
       } else {
         availablePopularTlds.forEach((tld) => {
@@ -1056,7 +1346,7 @@
         const empty = document.createElement("div");
         empty.className = "tld-empty";
         empty.textContent = tldState.items.length === 0
-          ? "尚未加载 TLD 列表" : "没有匹配的其他 TLD";
+          ? t("noTldList") : t("noOtherTldMatches");
         tldList.appendChild(empty);
       } else {
         otherVisible.forEach((tld) => {
@@ -1065,7 +1355,11 @@
       }
 
       const configuredCount = tldState.items.length - missing.length;
-      tldSummary.textContent = `${tldState.version || "IANA 根区清单"}；共 ${tldState.items.length} 个 TLD，已配置 ${configuredCount} 个`;
+      tldSummary.textContent = t("tldSummary", {
+        version: tldState.version || t("rootZoneList"),
+        count: tldState.items.length,
+        configured: configuredCount
+      });
       tldSelectAll.checked = visible.length > 0
         && selectedVisible.length === visible.length;
       tldSelectAll.indeterminate = selectedVisible.length > 0
@@ -1073,13 +1367,13 @@
       tldSelectAll.disabled = visible.length === 0;
       addSelectedTlds.disabled = selectedToAdd.length === 0;
       addSelectedTlds.textContent = selectedToAdd.length > 0
-        ? `添加选中的 ${selectedToAdd.length} 个 TLD` : "添加选中项";
+        ? t("addSelectedTldCount", { count: selectedToAdd.length }) : t("addSelected");
       deleteSelectedTlds.disabled = selectedToDelete.length === 0;
       deleteSelectedTlds.textContent = selectedToDelete.length > 0
-        ? `删除选中的 ${selectedToDelete.length} 个 TLD` : "删除选中项";
+        ? t("deleteSelectedTldCount", { count: selectedToDelete.length }) : t("deleteSelected");
       addAllTlds.disabled = missing.length === 0;
       addAllTlds.textContent = missing.length > 0
-        ? `添加全部 ${missing.length} 个未配置 TLD` : "全部 TLD 已配置";
+        ? t("addAllTldCount", { count: missing.length }) : t("allTldsConfigured");
     }
 
     async function loadTlds() {
@@ -1092,30 +1386,35 @@
         tldState.version = data.version || "";
         renderTlds();
       } catch (error) {
-        tldSummary.textContent = "IANA 根区域名列表加载失败";
+        tldSummary.textContent = t("tldListLoadFailed");
         tldList.replaceChildren();
         const empty = document.createElement("div");
         empty.className = "tld-empty";
-        empty.textContent = `加载失败：${error.message}`;
+        empty.textContent = t("loadFailed", { error: error.message });
         tldList.appendChild(empty);
       }
     }
 
     function updateRouteSelection() {
       const configured = configuredResolverDomains();
-      const selectable = routePager.items.filter((group) =>
+      const visibleSelectable = filteredRouteItems().filter((group) =>
         group.rootDomain && !domainCovered(group.rootDomain, configured)
       ).map((group) => group.rootDomain);
-      const selectedCount = selectable.filter((domain) =>
+      const selectedVisibleCount = visibleSelectable.filter((domain) =>
         routePager.selectedDomains.has(domain)
       ).length;
-      routeSelectAll.checked = selectable.length > 0 && selectedCount === selectable.length;
-      routeSelectAll.indeterminate = selectedCount > 0 && selectedCount < selectable.length;
-      routeSelectAll.disabled = selectable.length === 0;
+      const selectedCount = Array.from(routePager.selectedDomains).filter((domain) =>
+        routePager.items.some((group) => group.rootDomain === domain)
+          && !domainCovered(domain, configured)).length;
+      routeSelectAll.checked = visibleSelectable.length > 0
+        && selectedVisibleCount === visibleSelectable.length;
+      routeSelectAll.indeterminate = selectedVisibleCount > 0
+        && selectedVisibleCount < visibleSelectable.length;
+      routeSelectAll.disabled = visibleSelectable.length === 0;
       addSelectedDomains.disabled = selectedCount === 0;
       addSelectedDomains.textContent = selectedCount > 0
-        ? `添加选中的 ${selectedCount} 个根域名至系统 DNS`
-        : "添加选中域名至系统 DNS";
+        ? t("addSelectedDomainCount", { count: selectedCount })
+        : t("addSelectedDomainsToDns");
     }
 
     function compareRouteItems(left, right) {
@@ -1138,10 +1437,22 @@
       return expirations.length > 0 ? Math.min(...expirations) : Number.POSITIVE_INFINITY;
     }
 
-    function currentRoutePageItems() {
-      updatePager(routePager);
+    function filteredRouteItems() {
+      const query = routeSearch.value.trim();
+      if (!query) return routePager.items;
+      return routePager.items.filter((group) => {
+        const searchable = [group.key, group.rootDomain, ...(group.sourceKeys || [])];
+        group.targets.forEach((target) => {
+          searchable.push(target.sourceKey, target.ip, target.gateway);
+        });
+        return fuzzyFieldsMatch(searchable, query);
+      });
+    }
+
+    function currentRoutePageItems(items) {
+      updatePager(routePager, items.length);
       const start = (routePager.page - 1) * routePager.pageSize;
-      return routePager.items.slice().sort(compareRouteItems)
+      return items.slice().sort(compareRouteItems)
         .slice(start, start + routePager.pageSize);
     }
 
@@ -1173,13 +1484,33 @@
     function renderRoutePage() {
       rows.replaceChildren();
       if (routePager.items.length === 0) {
+        summary.textContent = t("routeSummary", { groups: 0, routes: 0 });
         updatePager(routePager);
-        showMessage("尚未设置路由");
+        showMessage(t("noRoutes"));
+        updateRouteSelection();
+        return;
+      }
+      const filteredItems = filteredRouteItems();
+      const filteredRouteCount = filteredItems.reduce(
+        (count, group) => count + group.targets.length, 0);
+      summary.textContent = routeSearch.value.trim()
+        ? t("filteredRouteSummary", {
+          groups: filteredItems.length,
+          routes: filteredRouteCount,
+          total: routePager.items.length
+        })
+        : t("routeSummary", {
+          groups: routePager.items.length,
+          routes: filteredRouteCount
+        });
+      updatePager(routePager, filteredItems.length);
+      if (filteredItems.length === 0) {
+        showMessage(t("noManagedRouteMatches"));
         updateRouteSelection();
         return;
       }
 
-      currentRoutePageItems().forEach((group) => {
+      currentRoutePageItems(filteredItems).forEach((group) => {
         if (!group.rootDomain && group.targets.length === 1) {
           const target = group.targets[0];
           const row = document.createElement("tr");
@@ -1213,8 +1544,8 @@
           checkbox.checked = routePager.selectedDomains.has(group.rootDomain);
           checkbox.disabled = group.configured;
           checkbox.setAttribute("aria-label", group.configured
-            ? `${group.rootDomain} 已配置到系统 DNS`
-            : `选择根域名 ${group.rootDomain}`);
+            ? t("configuredToSystemDns", { domain: group.rootDomain })
+            : t("selectRootDomain", { domain: group.rootDomain }));
           checkbox.addEventListener("change", () => {
             if (checkbox.checked) {
               routePager.selectedDomains.add(group.rootDomain);
@@ -1229,7 +1560,7 @@
         toggle.type = "button";
         toggle.className = "key-toggle";
         toggle.setAttribute("aria-expanded", String(expanded));
-        toggle.setAttribute("aria-label", `${expanded ? "折叠" : "展开"} ${group.key}`);
+        toggle.setAttribute("aria-label", t(expanded ? "collapseKey" : "expandKey", { key: group.key }));
         const chevron = document.createElement("span");
         chevron.className = "chevron";
         chevron.textContent = expanded ? "▼" : "▶";
@@ -1248,18 +1579,19 @@
         if (group.configured) {
           const badge = document.createElement("span");
           badge.className = "configured-badge";
-          badge.textContent = "已配置";
+          badge.textContent = t("configured");
           keyLayout.appendChild(badge);
         }
         keyCell.appendChild(keyLayout);
         groupRow.appendChild(keyCell);
-        addCell(groupRow, `${group.targets.length} 个 IP`, "route-count");
-        addCell(groupRow, gateways.length === 1 ? gateways[0] : `${gateways.length} 个网关`);
-        addCell(groupRow, "点击展开查看", "route-count");
+        addCell(groupRow, t("ipCount", { count: group.targets.length }), "route-count");
+        addCell(groupRow, gateways.length === 1 ? gateways[0]
+          : t("gatewayCount", { count: gateways.length }));
+        addCell(groupRow, t("clickToExpand"), "route-count");
         if (Number.isFinite(expiration)) {
-          addCell(groupRow, `最早 ${formatTimestamp(expiration)}`, "expiring");
+          addCell(groupRow, t("earliest", { time: formatTimestamp(expiration) }), "expiring");
         } else {
-          addCell(groupRow, "全部永久", "permanent");
+          addCell(groupRow, t("allPermanent"), "permanent");
         }
         addGroupDeleteButton(groupRow, group);
         rows.appendChild(groupRow);
@@ -1325,7 +1657,10 @@
       });
       const routeCount = routePager.items.reduce(
         (count, group) => count + group.targets.length, 0);
-      summary.textContent = `共 ${routePager.items.length} 个根域名/KEY，${routeCount} 条路由`;
+      summary.textContent = t("routeSummary", {
+        groups: routePager.items.length,
+        routes: routeCount
+      });
       renderRoutePage();
     }
 
@@ -1336,19 +1671,39 @@
         const data = await response.json();
         renderRoutes(Array.isArray(data.routes) ? data.routes : []);
       } catch (error) {
-        summary.textContent = "路由列表加载失败";
-        showMessage(`加载失败：${error.message}`);
+        summary.textContent = t("routeListLoadFailed");
+        showMessage(t("loadFailed", { error: error.message }));
       }
+    }
+
+    function filteredSystemRouteItems() {
+      const query = systemRouteSearch.value.trim();
+      if (!query) return systemPager.items;
+      return systemPager.items.filter((route) =>
+        fuzzyFieldsMatch([route.ip, route.gateway, route.interface], query));
     }
 
     function renderSystemRoutePage() {
       systemRows.replaceChildren();
       if (systemPager.items.length === 0) {
+        systemSummary.textContent = t("systemRouteSummary", { count: 0 });
         updatePager(systemPager);
-        showSystemMessage("系统中没有匹配的静态主机路由");
+        showSystemMessage(t("noSystemRoutes"));
         return;
       }
-      currentPageItems(systemPager).forEach((route) => {
+      const filteredItems = filteredSystemRouteItems();
+      systemSummary.textContent = systemRouteSearch.value.trim()
+        ? t("filteredSystemRouteSummary", {
+          count: filteredItems.length,
+          total: systemPager.items.length
+        })
+        : t("systemRouteSummary", { count: systemPager.items.length });
+      updatePager(systemPager, filteredItems.length);
+      if (filteredItems.length === 0) {
+        showSystemMessage(t("noSystemRouteMatches"));
+        return;
+      }
+      currentPageItems(systemPager, filteredItems).forEach((route) => {
         const row = document.createElement("tr");
         addCell(row, route.ip || "");
         addCell(row, route.gateway || "");
@@ -1360,7 +1715,7 @@
 
     function renderSystemRoutes(routes) {
       systemPager.items = routes;
-      systemSummary.textContent = `从系统路由表读取到 ${routes.length} 条静态主机路由`;
+      systemSummary.textContent = t("systemRouteSummary", { count: routes.length });
       renderSystemRoutePage();
     }
 
@@ -1387,8 +1742,8 @@
         if (!response.ok) throw new Error(data.message || `HTTP ${response.status}`);
         renderSystemRoutes(Array.isArray(data.routes) ? data.routes : []);
       } catch (error) {
-        systemSummary.textContent = "系统路由表加载失败";
-        showSystemMessage(`加载失败：${error.message}`);
+        systemSummary.textContent = t("systemRouteListLoadFailed");
+        showSystemMessage(t("loadFailed", { error: error.message }));
       }
     }
 
@@ -1400,23 +1755,23 @@
     async function refreshWorkspace(targetId) {
       switch (targetId) {
         case "dns-domains":
-          showDomainMessage("正在从服务器重新加载…");
+          showDomainMessage(t("reloading"));
           await loadDomains();
           break;
         case "global-dns":
-          tldSummary.textContent = "正在从服务器重新加载 IANA 根区域名列表…";
+          tldSummary.textContent = t("reloadingTlds");
           await loadDomains();
           await loadTlds();
           break;
         case "memory-routes":
-          summary.textContent = "正在从服务器重新加载路由列表…";
-          showMessage("正在加载…");
+          summary.textContent = t("reloadingRoutes");
+          showMessage(t("loading"));
           await loadDomains();
           await loadRoutes();
           break;
         case "system-routes-panel":
-          systemSummary.textContent = "正在从服务器重新读取系统路由表…";
-          showSystemMessage("正在加载…");
+          systemSummary.textContent = t("reloadingSystemRoutes");
+          showSystemMessage(t("loading"));
           await loadSystemRoutes();
           break;
         default:
@@ -1440,10 +1795,10 @@
         const data = await routeRequest("POST", values);
         const count = data.count === undefined ? 1 : data.count;
         const succeeded = data.succeeded === undefined ? 1 : data.succeeded;
-        showNotice(`添加完成：成功 ${succeeded}/${count} 条`, data.success ? "success" : "warning");
+        showNotice(t("addComplete", { succeeded, count }), data.success ? "success" : "warning");
         await loadAllRoutes();
       } catch (error) {
-        showNotice(`添加失败：${error.message}`, "error");
+        showNotice(t("addFailed", { error: error.message }), "error");
       } finally {
         button.disabled = false;
       }
@@ -1458,15 +1813,15 @@
       try {
         const data = await domainRequest("POST", domains);
         const refreshed = data.system_refreshed !== false;
-        showNotice(`域名添加完成：成功 ${data.succeeded}/${data.count} 个`
-          + (refreshed ? "，系统 DNS 已刷新"
-            : `，但系统 DNS 刷新失败：${data.refresh_error || "未知错误"}`),
+        showNotice(t("domainAddComplete", { succeeded: data.succeeded, count: data.count })
+          + (refreshed ? t("dnsRefreshed")
+            : t("dnsRefreshFailed", { error: data.refresh_error || t("unknownError") })),
           data.success && refreshed ? "success" : "warning");
         form.reset();
         await loadDomains();
         await loadRoutes();
       } catch (error) {
-        showNotice(`域名添加失败：${error.message}`, "error");
+        showNotice(t("domainAddFailed", { error: error.message }), "error");
       } finally {
         button.disabled = false;
       }
@@ -1478,18 +1833,18 @@
       const button = form.querySelector("button[type=submit]");
       const values = Object.fromEntries(new FormData(form));
       if (!values.key && !values.ip) {
-        showNotice("删除时至少需要填写 KEY 或目标 IP", "error");
+        showNotice(t("deleteNeedsKeyOrIp"), "error");
         return;
       }
-      if (!window.confirm("确定删除所有匹配的路由吗？")) return;
+      if (!window.confirm(t("confirmDeleteMatches"))) return;
       button.disabled = true;
       try {
         const data = await routeRequest("DELETE", values);
-        showNotice(`删除完成：成功 ${data.succeeded}/${data.count} 条`,
+        showNotice(t("deleteComplete", { succeeded: data.succeeded, count: data.count }),
           data.success ? "success" : "warning");
         await loadAllRoutes();
       } catch (error) {
-        showNotice(`删除失败：${error.message}`, "error");
+        showNotice(t("deleteFailed", { error: error.message }), "error");
       } finally {
         button.disabled = false;
       }
@@ -1497,6 +1852,18 @@
     bindPagination(routePager, renderRoutePage);
     bindPagination(systemPager, renderSystemRoutePage);
     bindPagination(domainPager, renderDomainPage);
+    domainSearch.addEventListener("input", () => {
+      domainPager.page = 1;
+      renderDomainPage();
+    });
+    routeSearch.addEventListener("input", () => {
+      routePager.page = 1;
+      renderRoutePage();
+    });
+    systemRouteSearch.addEventListener("input", () => {
+      systemPager.page = 1;
+      renderSystemRoutePage();
+    });
     tldSearch.addEventListener("input", renderTlds);
     tldSelectAll.addEventListener("change", () => {
       filteredTlds().forEach((tld) => {
@@ -1509,17 +1876,17 @@
     async function addTldsToSystem(domains, button) {
       button.disabled = true;
       const originalText = button.textContent;
-      button.textContent = "正在写入并刷新 DNS…";
+      button.textContent = t("writingDns");
       try {
         const data = await domainRequest("POST", domains.join("\n"));
         const refreshed = data.system_refreshed !== false;
         domains.forEach((tld) => tldState.selected.delete(tld));
-        showNotice(`TLD 配置完成：成功 ${data.succeeded}/${data.count} 个`
-          + (refreshed ? "，系统 DNS 已自动生效"
-            : `，但刷新失败：${data.refresh_error || "未知错误"}`),
+        showNotice(t("tldConfigComplete", { succeeded: data.succeeded, count: data.count })
+          + (refreshed ? t("dnsActive")
+            : t("refreshFailed", { error: data.refresh_error || t("unknownError") })),
           data.success && refreshed ? "success" : "warning");
       } catch (error) {
-        showNotice(`TLD 配置失败：${error.message}`, "error");
+        showNotice(t("tldConfigFailed", { error: error.message }), "error");
       }
       button.textContent = originalText;
       await loadDomains();
@@ -1532,7 +1899,7 @@
       const domains = Array.from(tldState.selected)
         .filter((tld) => !configured.has(tld)).sort(compareText);
       if (domains.length === 0) return;
-      if (!window.confirm(`确定将选中的 ${domains.length} 个一级根域名加入 /etc/resolver 吗？`)) return;
+      if (!window.confirm(t("confirmAddTlds", { count: domains.length }))) return;
       await addTldsToSystem(domains, addSelectedTlds);
     });
     deleteSelectedTlds.addEventListener("click", async () => {
@@ -1540,20 +1907,20 @@
       const domains = Array.from(tldState.selected)
         .filter((tld) => configured.has(tld)).sort(compareText);
       if (domains.length === 0) return;
-      if (!window.confirm(`确定从 /etc/resolver 删除选中的 ${domains.length} 个一级根域名吗？`)) return;
+      if (!window.confirm(t("confirmDeleteTlds", { count: domains.length }))) return;
       deleteSelectedTlds.disabled = true;
       const originalText = deleteSelectedTlds.textContent;
-      deleteSelectedTlds.textContent = "正在删除并刷新 DNS…";
+      deleteSelectedTlds.textContent = t("deletingDns");
       try {
         const data = await domainRequest("DELETE", domains.join("\n"));
         const refreshed = data.system_refreshed !== false;
         domains.forEach((tld) => tldState.selected.delete(tld));
-        showNotice(`TLD 删除完成：成功 ${data.succeeded}/${data.count} 个`
-          + (refreshed ? "，系统 DNS 已自动生效"
-            : `，但刷新失败：${data.refresh_error || "未知错误"}`),
+        showNotice(t("tldDeleteComplete", { succeeded: data.succeeded, count: data.count })
+          + (refreshed ? t("dnsActive")
+            : t("refreshFailed", { error: data.refresh_error || t("unknownError") })),
           data.success && refreshed ? "success" : "warning");
       } catch (error) {
-        showNotice(`TLD 删除失败：${error.message}`, "error");
+        showNotice(t("tldDeleteFailed", { error: error.message }), "error");
       }
       deleteSelectedTlds.textContent = originalText;
       await loadDomains();
@@ -1564,12 +1931,12 @@
       const configured = configuredResolverDomains();
       const domains = tldState.items.filter((tld) => !configured.has(tld));
       if (domains.length === 0) return;
-      if (!window.confirm(`即将创建 ${domains.length} 个 /etc/resolver 文件，并让 dns-gate 接管所有公共 DNS 域名。确定继续吗？`)) return;
+      if (!window.confirm(t("confirmAddAllTlds", { count: domains.length }))) return;
       await addTldsToSystem(domains, addAllTlds);
     });
     routeSelectAll.addEventListener("change", () => {
       const configured = configuredResolverDomains();
-      routePager.items.forEach((group) => {
+      filteredRouteItems().forEach((group) => {
         if (!group.rootDomain || domainCovered(group.rootDomain, configured)) return;
         if (routeSelectAll.checked) {
           routePager.selectedDomains.add(group.rootDomain);
@@ -1582,18 +1949,18 @@
     addSelectedDomains.addEventListener("click", async () => {
       const domains = Array.from(routePager.selectedDomains).sort(compareText);
       if (domains.length === 0) return;
-      if (!window.confirm(`确定将选中的 ${domains.length} 个根域名添加至系统 DNS 吗？`)) return;
+      if (!window.confirm(t("confirmAddRootDomains", { count: domains.length }))) return;
       addSelectedDomains.disabled = true;
       try {
         const data = await domainRequest("POST", domains.join("\n"));
         routePager.selectedDomains.clear();
         const refreshed = data.system_refreshed !== false;
-        showNotice(`系统 DNS 配置完成：成功 ${data.succeeded}/${data.count} 个`
-          + (refreshed ? "，已自动生效"
-            : `，但刷新失败：${data.refresh_error || "未知错误"}`),
+        showNotice(t("systemDnsComplete", { succeeded: data.succeeded, count: data.count })
+          + (refreshed ? t("activeNow")
+            : t("refreshFailed", { error: data.refresh_error || t("unknownError") })),
           data.success && refreshed ? "success" : "warning");
       } catch (error) {
-        showNotice(`系统 DNS 配置失败：${error.message}`, "error");
+        showNotice(t("systemDnsFailed", { error: error.message }), "error");
       }
       await loadDomains();
       await loadRoutes();
@@ -1624,8 +1991,8 @@
         view.classList.toggle("active", view === target));
       navigationLinks.forEach((item) =>
         item.classList.toggle("active", item === link));
-      workspaceTitle.textContent = link.dataset.title || link.textContent.trim();
-      workspaceDescription.textContent = link.dataset.description || "";
+      workspaceTitle.textContent = t(link.dataset.titleKey);
+      workspaceDescription.textContent = t(link.dataset.descriptionKey);
       document.querySelector("main").scrollTop = 0;
       if (updateHash) history.replaceState(null, "", `#${targetId}`);
     }
@@ -1639,6 +2006,7 @@
       });
     });
     const initialWorkspace = location.hash ? location.hash.slice(1) : "route-actions";
+    applyTranslations();
     activateWorkspace(initialWorkspace, false);
     updateRouteSortHeaders();
     updateDomainSortHeaders();
