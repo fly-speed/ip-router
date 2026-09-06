@@ -18,6 +18,7 @@
 - [平台实现](#zh-platform)
 - [Web 管理功能](#zh-web-features)
 - [代码结构](#zh-source-layout)
+- [从源码编译](#zh-build)
 - [安装教程](#zh-install)
   - [安装 acl-master](#zh-install-acl-master)
   - [安装后使用 Web 管理界面](#zh-use-web-console)
@@ -39,6 +40,7 @@
 - [Platform implementation](#en-platform)
 - [Web console](#en-web-features)
 - [Source layout](#en-source-layout)
+- [Build from source](#en-build)
 - [Installation](#en-install)
   - [Install acl-master](#en-install-acl-master)
   - [Using the web console after installation](#en-use-web-console)
@@ -387,6 +389,83 @@ flowchart TD
 └── vendor/libmaxminddb/            # 内置libmaxminddb源码
 ```
 
+<a id="zh-build"></a>
+
+## 从源码编译
+
+必须先编译 ACL 并将其头文件和库安装到系统目录，之后才能编译本项目的
+`ip-router` 和 `dns-gate` 两个模块。
+
+### 1. 准备编译环境
+
+Ubuntu：
+
+```shell
+sudo apt update
+sudo apt install -y build-essential git zlib1g-dev
+```
+
+macOS：
+
+```shell
+xcode-select --install
+```
+
+### 2. 下载、编译并安装 ACL 库
+
+从 ACL 官方 GitHub 或 Gitee 仓库拉取源码：
+
+```shell
+git clone https://github.com/acl-dev/acl.git
+or
+git clone https://gitee.com/acl-dev/acl.git
+cd acl
+make
+sudo make packinstall
+```
+
+`make` 会构建 ACL、ACL C++ 和 fiber 等库；`make packinstall` 会把本项目需要的
+头文件和静态库安装到系统目录：
+
+| 平台 | 头文件目录 | 库目录 |
+| --- | --- | --- |
+| Ubuntu / Linux | `/usr/include/acl-lib` | `/usr/lib` |
+| macOS | `/usr/local/include/acl-lib` | `/usr/local/lib` |
+
+安装后应能找到 `libacl_all.a`、`libfiber.a` 和 `libfiber_cpp.a`。如果 ACL 源码
+已经存在，可以进入其根目录直接执行 `make` 和 `sudo make packinstall`。
+
+### 3. 编译 ip-router 和 dns-gate
+
+回到本项目根目录，依次编译两个模块：
+
+```shell
+cd /path/to/ip-router
+
+make -C ip-router clean
+make -C ip-router
+
+make -C dns-gate clean
+make -C dns-gate
+```
+
+编译成功后会生成：
+
+```text
+ip-router/ip-router
+dns-gate/dns-gate
+```
+
+`dns-gate` 会直接编译项目 `vendor/libmaxminddb` 中的源码，不要求系统预装
+libmaxminddb。运行或制作 dns-gate 安装包前，还需要准备 DB-IP 数据库：
+
+```shell
+cd dns-gate
+./update-dbip.sh
+```
+
+如果要通过 acl-master 部署服务，继续执行下面的 acl-master 和安装包步骤。
+
 
 <a id="zh-install"></a>
 
@@ -404,9 +483,12 @@ flowchart TD
 安装 master 框架：
 
 ```shell
+git clone https://github.com/acl-dev/acl.git
+or
 git clone https://gitee.com/acl-dev/acl.git
 cd acl
 make
+sudo make packinstall
 sudo make install_master
 sudo touch /opt/soft/acl-master/conf/services.cf
 ```
@@ -1077,6 +1159,85 @@ suffixes, not a complete Public Suffix List implementation.
 └── vendor/libmaxminddb/            # Bundled libmaxminddb source
 ```
 
+<a id="en-build"></a>
+
+## Build from source
+
+ACL must be built first, and its headers and libraries must be installed in the
+system directories before building the `ip-router` and `dns-gate` modules.
+
+### 1. Install build prerequisites
+
+Ubuntu:
+
+```shell
+sudo apt update
+sudo apt install -y build-essential git zlib1g-dev
+```
+
+macOS:
+
+```shell
+xcode-select --install
+```
+
+### 2. Download, build, and install ACL
+
+Clone the official ACL GitHub or Gitee repository:
+
+```shell
+git clone https://github.com/acl-dev/acl.git
+cd acl
+make
+sudo make packinstall
+```
+
+`make` builds the ACL, ACL C++, and fiber libraries. `make packinstall` installs
+the headers and static libraries required by this project into the system
+directories:
+
+| Platform | Header directory | Library directory |
+| --- | --- | --- |
+| Ubuntu / Linux | `/usr/include/acl-lib` | `/usr/lib` |
+| macOS | `/usr/local/include/acl-lib` | `/usr/local/lib` |
+
+After installation, `libacl_all.a`, `libfiber.a`, and `libfiber_cpp.a` should
+be available. If an ACL source checkout already exists, run `make` and
+`sudo make packinstall` from its root directory.
+
+### 3. Build ip-router and dns-gate
+
+Return to this repository's root directory and build both modules:
+
+```shell
+cd /path/to/ip-router
+
+make -C ip-router clean
+make -C ip-router
+
+make -C dns-gate clean
+make -C dns-gate
+```
+
+The resulting executables are:
+
+```text
+ip-router/ip-router
+dns-gate/dns-gate
+```
+
+`dns-gate` compiles the bundled `vendor/libmaxminddb` source directly, so a
+system installation of libmaxminddb is not required. Before running dns-gate or
+building its package, download the DB-IP database:
+
+```shell
+cd dns-gate
+./update-dbip.sh
+```
+
+To deploy through acl-master, continue with the acl-master and packaging steps
+below.
+
 <a id="en-install"></a>
 
 ## Installation
@@ -1093,9 +1254,10 @@ on macOS, install the Command Line Tools with `xcode-select --install`. Then
 build and install the master framework from the official ACL repository:
 
 ```shell
-git clone https://gitee.com/acl-dev/acl.git
+git clone https://github.com/acl-dev/acl.git
 cd acl
 make
+sudo make packinstall
 sudo make install_master
 sudo touch /opt/soft/acl-master/conf/services.cf
 ```
