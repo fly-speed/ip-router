@@ -57,6 +57,9 @@ std::thread expiration_worker;
 bool worker_started = false;
 bool worker_stopping = false;
 std::string routes_file("routes.db");
+std::string global_route_file("routes.db.global");
+acl::string global_gateway;
+bool force_global_gateway = false;
 
 class route_metadata {
 public:
@@ -76,6 +79,82 @@ typedef std::map<acl::string, route_metadata> key_routes;
 std::map<acl::string, key_routes> installed_routes;
 
 void set_error(acl::string& error, const char* operation, int code);
+
+bool save_global_route_locked(acl::string& error)
+{
+	std::string temporary(global_route_file);
+	temporary.append(".tmp");
+	std::ofstream output(temporary.c_str(),
+		std::ios::out | std::ios::binary | std::ios::trunc);
+	if (!output.is_open()) {
+		set_error(error, "open temporary global route settings", errno);
+		return false;
+	}
+
+	output << "# ip-router global route v1\n";
+	if (!global_gateway.empty()) {
+		output << global_gateway.c_str() << '\t'
+			<< (force_global_gateway ? 1 : 0) << '\n';
+	}
+	output.flush();
+	if (!output.good()) {
+		output.close();
+		error = "write temporary global route settings failed";
+		return false;
+	}
+	output.close();
+
+#if defined(_WIN32) || defined(_WIN64)
+	::remove(global_route_file.c_str());
+#endif
+	if (::rename(temporary.c_str(), global_route_file.c_str()) != 0) {
+		set_error(error, "replace global route settings", errno);
+		return false;
+	}
+	return true;
+}
+
+bool load_global_route_locked(acl::string& error)
+{
+	std::ifstream input(global_route_file.c_str(),
+		std::ios::in | std::ios::binary);
+	if (!input.is_open()) {
+		if (errno == ENOENT) {
+			return true;
+		}
+		set_error(error, "open global route settings", errno);
+		return false;
+	}
+
+	std::string header;
+	if (!std::getline(input, header)
+		|| header != "# ip-router global route v1") {
+		error = "invalid global route settings header";
+		return false;
+	}
+	std::string line;
+	if (!std::getline(input, line) || line.empty()) {
+		global_gateway = "";
+		force_global_gateway = false;
+		return true;
+	}
+	std::string::size_type separator = line.find('\t');
+	if (separator == std::string::npos
+		|| line.find('\t', separator + 1) != std::string::npos) {
+		error = "invalid global route settings record";
+		return false;
+	}
+	std::string gateway = line.substr(0, separator);
+	std::string force = line.substr(separator + 1);
+	if (!route_manager::valid_ipv4(gateway.c_str())
+		|| (force != "0" && force != "1")) {
+		error = "invalid global route settings values";
+		return false;
+	}
+	global_gateway = gateway.c_str();
+	force_global_gateway = force == "1";
+	return true;
+}
 
 bool save_routes_locked(acl::string& error)
 {
@@ -847,6 +926,7 @@ void route_manager::set_storage_path(const char* path)
 		return;
 	}
 	routes_file = path != NULL && *path != 0 ? path : "routes.db";
+	global_route_file = routes_file + ".global";
 }
 
 void route_manager::start(void)
@@ -858,8 +938,16 @@ void route_manager::start(void)
 	worker_started = true;
 	worker_stopping = false;
 	installed_routes.clear();
+	global_gateway = "";
+	force_global_gateway = false;
 	logger("route persistence file=%s", routes_file.c_str());
+	logger("global route settings file=%s", global_route_file.c_str());
 	acl::string error;
+	if (!load_global_route_locked(error)) {
+		logger_error("load global route settings failed, file=%s, error=%s",
+			global_route_file.c_str(), error.c_str());
+	}
+	error.clear();
 	if (!load_routes_locked(error)) {
 		logger_error("load persisted routes failed, file=%s, error=%s",
 			routes_file.c_str(), error.c_str());
@@ -894,6 +982,36 @@ bool route_manager::valid_ipv4(const char* value)
 	memset(&address, 0, sizeof(address));
 	return acl_inet_pton(AF_INET, value,
 		reinterpret_cast<struct sockaddr*>(&address)) > 0;
+}
+
+void route_manager::get_global_route(acl::string& gateway, bool& force)
+{
+	std::lock_guard<std::mutex> guard(routes_mutex);
+	gateway = global_gateway;
+	force = force_global_gateway;
+}
+
+bool route_manager::set_global_route(const char* gateway, bool force,
+	acl::string& error)
+{
+	if (gateway != NULL && *gateway != 0 && !valid_ipv4(gateway)) {
+		error = "global gateway must be a valid IPv4 address";
+		return false;
+	}
+	std::lock_guard<std::mutex> guard(routes_mutex);
+	acl::string previous_gateway = global_gateway;
+	bool previous_force = force_global_gateway;
+	global_gateway = gateway != NULL ? gateway : "";
+	force_global_gateway = !global_gateway.empty() && force;
+	if (!save_global_route_locked(error)) {
+		global_gateway = previous_gateway;
+		force_global_gateway = previous_force;
+		return false;
+	}
+	logger("global route settings updated, gateway=%s, force=%s",
+		global_gateway.empty() ? "(disabled)" : global_gateway.c_str(),
+		force_global_gateway ? "yes" : "no");
+	return true;
 }
 
 bool route_manager::add(const char* destination, const char* gateway,

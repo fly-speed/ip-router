@@ -24,7 +24,7 @@ int main(int argc, char *argv[])
 		// Do not create acl_master.log in standalone mode.
 		acl::master_log_enable(false);
 
-		const char* addr = "127.0.0.1|8888";
+		const char* addr = "127.0.0.1|8088";
 
 		if (argc >= 4) {
 			addr = argv[3];
@@ -34,7 +34,7 @@ int main(int argc, char *argv[])
 		ms.run_alone(addr, argc >= 3 ? argv[2] : NULL);
 	} else {
 #if defined(_WIN32) || defined(_WIN64)
-		const char* addr = "127.0.0.1:8887";
+		const char* addr = "127.0.0.1:8088";
 
 		acl::log::stdout_open(true);
 		printf("listen: %s\r\n", addr);

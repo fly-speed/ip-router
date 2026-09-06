@@ -24,6 +24,9 @@ ip router，快捷访问网络。
 - `POST /domain?domains=<域名列表>`：批量添加 DNS 分流域名，支持用逗号、分号或空白分隔，一次最多 4096 个。
 - `DELETE /domain?domain=<域名>`：删除一个 DNS 分流域名；也可使用 `domains` 参数批量删除。
 - `GET /routes`：以字符串 `key` 分组，列出本服务成功设置且尚未删除的全部 IP 路由。
+- `GET /route-settings`：读取全局网关及强制使用状态。
+- `POST /route-settings?gateway=<网关IPv4>&force=<布尔值>`：保存全局网关；`force` 可选，支持 `0/1`、`true/false`、`yes/no` 和 `on/off`。
+- `DELETE /route-settings`：取消全局网关设置。
 - `GET /system-routes`：直接读取系统路由表，列出静态 IPv4 主机路由及其网关和网络接口。
 - `DELETE /system-route?ip=<目标IPv4>&gateway=<网关IPv4>`：直接删除指定的系统静态主机路由。
 - `POST /route?ip=<目标IPv4>&gateway=<网关IPv4>&key=<字符串KEY>&ttl=<秒>`：向指定 KEY 添加或替换一个目标 IP 的主机路由。
@@ -35,6 +38,9 @@ ip router，快捷访问网络。
 参数 `target` 可作为 `ip` 的别名，参数 `route` 可作为 `gateway` 的别名。
 旧的 `domain` 参数暂时可作为 `key` 的兼容别名。
 `ttl` 为可选的整数秒数；缺省或小于等于 `0` 时永不过期，大于 `0` 时到期自动删除系统路由。
+添加路由时，如果请求没有 `gateway`/`route` 参数，则使用已配置的全局网关；
+开启全局网关的 `force` 后，即使请求指定了网关也会被全局网关覆盖。
+全局网关设置持久化在路由数据库同目录的 `<routes_file>.global` 文件中，重启后自动加载。
 修改系统路由表通常需要以 root 或具备相应网络管理权限的用户运行服务。
 
 在 macOS 上，域名管理接口会为每个域名创建
@@ -145,6 +151,9 @@ MMDB 查询或路由请求失败时服务会记录日志并继续返回 DNS 响�
 ```shell
 curl -X POST 'http://127.0.0.1:8088/route?ip=8.8.8.8&gateway=192.168.1.1&key=dns.google&ttl=300'
 curl -X POST 'http://127.0.0.1:8088/route?ips=8.8.8.8,8.8.4.4&gateway=192.168.1.1&key=dns.google&ttl=300'
+curl -X POST 'http://127.0.0.1:8088/route-settings?gateway=192.168.1.1&force=1'
+curl -X POST 'http://127.0.0.1:8088/route?ip=8.8.8.8&key=dns.google&ttl=300'
+curl -X DELETE 'http://127.0.0.1:8088/route-settings'
 curl -X DELETE 'http://127.0.0.1:8088/route?key=dns.google'
 curl -X DELETE 'http://127.0.0.1:8088/route?ip=8.8.8.8'
 curl -X DELETE 'http://127.0.0.1:8088/route?key=dns.google&ip=8.8.8.8'

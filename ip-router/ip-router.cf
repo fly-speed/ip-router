@@ -167,4 +167,13 @@ service ip-router
 #	crt_file = ./ssl_crt.pem
 #	key_file = ./ssl_key.pem
 #	key_pass =
+
+#	全局路由设置会同步保存在同目录的 routes_file.global 文件中
+	routes_file = /opt/soft/ip-router/conf/routes.db
+#	系统域名解析存放路径
+	resolver_dir = /etc/resolver
+#	在resolver_dir目录下域名文件的存储内容，包括 IP, PORT, search_order
+	dns_gate_nameserver = 127.0.0.1
+	dns_gate_port = 53
+	resolver_search_order = 1
 }

@@ -132,6 +132,15 @@
       box-shadow: none;
     }
     .form-actions { display: flex; align-items: end; }
+    .full-width-panel { grid-column: 1 / -1; }
+    .checkbox-option {
+      display: flex;
+      align-items: center;
+      align-self: end;
+      min-height: 38px;
+      gap: 8px;
+    }
+    .global-route-status { margin: -8px 0 16px; font-size: 13px; }
     button {
       padding: 9px 15px;
       color: #fff;
@@ -376,7 +385,7 @@
           </label>
           <label>
             <span data-i18n="gatewayIp">网关 IP</span>
-            <input name="gateway" required placeholder="例如 192.168.1.1" data-i18n-placeholder="gatewayPlaceholder">
+            <input name="gateway" placeholder="留空时使用全局网关" data-i18n-placeholder="routeGatewayPlaceholder">
           </label>
           <label>
             <span data-i18n="ttlSeconds">TTL（秒）</span>
@@ -399,6 +408,27 @@
           </label>
           <p class="hint" data-i18n="deleteHint">至少填写一项；同时填写时只删除该 KEY 下的指定 IP。</p>
           <div class="form-actions"><button class="danger" type="submit" data-i18n="deleteRoute">删除路由</button></div>
+        </form>
+      </section>
+      <section class="card panel full-width-panel">
+        <h2 data-i18n="globalRouteSettings">全局路由设置</h2>
+        <p id="global-route-status" class="global-route-status" data-i18n="globalRouteLoading">正在加载全局路由设置…</p>
+        <form id="global-route-form" class="form-grid">
+          <label>
+            <span data-i18n="globalGatewayIp">全局网关 IP</span>
+            <input name="gateway" required placeholder="例如 192.168.1.1"
+              data-i18n-placeholder="gatewayPlaceholder">
+          </label>
+          <label class="checkbox-option">
+            <input name="force" type="checkbox" value="1">
+            <span data-i18n="forceGlobalGateway">强制使用全局网关</span>
+          </label>
+          <p class="hint" data-i18n="globalRouteHint">客户端未指定网关时使用全局网关；开启强制后，客户端指定的网关也会被忽略。</p>
+          <div class="form-actions">
+            <button type="submit" data-i18n="saveGlobalRoute">保存全局路由</button>
+            <button id="clear-global-route" class="danger" type="button" style="margin-left: 8px" disabled
+              data-i18n="clearGlobalRoute">取消全局路由</button>
+          </div>
         </form>
       </section>
     </div>
@@ -618,7 +648,7 @@
     const translations = {
       "zh-CN": {
         sidebarAria: "功能导航", brandSubtitle: "路由与 DNS 分流控制台",
-        routeActions: "路由操作", routeActionsDesc: "添加或批量删除指定 KEY 的主机路由",
+        routeActions: "路由操作", routeActionsDesc: "添加、删除主机路由并配置全局网关",
         domainDns: "指定域名 DNS", domainDnsDesc: "管理由 dns-gate 接管的指定域名",
         globalDns: "全局 DNS 接管", globalDnsDesc: "通过 IANA 一级根域名接管所有公共 DNS 查询",
         memoryRoutes: "服务内存路由", memoryRoutesDesc: "查看、折叠和删除 ip-router 管理的路由",
@@ -626,11 +656,22 @@
         domainJsonApi: "域名 JSON API", memoryJsonApi: "内存路由 JSON API",
         systemJsonApi: "系统路由 JSON API", refresh: "刷新", addRoute: "添加路由",
         keyPlaceholder: "例如 dns.google", targetIp: "目标 IP", ipsPlaceholder: "多个 IP 用逗号或空格分隔",
-        gatewayIp: "网关 IP", gatewayPlaceholder: "例如 192.168.1.1", ttlSeconds: "TTL（秒）",
+        gatewayIp: "网关 IP", gatewayPlaceholder: "例如 192.168.1.1",
+        routeGatewayPlaceholder: "留空时使用全局网关", ttlSeconds: "TTL（秒）",
         ttlHint: "TTL 为 0 表示永久；同一 KEY 可以一次添加多个目标 IP。",
         batchDelete: "批量删除", optionalKey: "KEY（可选）", deleteKeyPlaceholder: "删除整个 KEY 或配合 IP",
         optionalTargetIp: "目标 IP（可选）", deleteIpPlaceholder: "删除所有匹配 IP",
         deleteHint: "至少填写一项；同时填写时只删除该 KEY 下的指定 IP。", deleteRoute: "删除路由",
+        globalRouteSettings: "全局路由设置", globalRouteLoading: "正在加载全局路由设置…",
+        globalGatewayIp: "全局网关 IP", forceGlobalGateway: "强制使用全局网关",
+        globalRouteHint: "客户端未指定网关时使用全局网关；开启强制后，客户端指定的网关也会被忽略。",
+        saveGlobalRoute: "保存全局路由", clearGlobalRoute: "取消全局路由",
+        globalRouteDisabled: "当前未设置全局网关。",
+        globalRouteFallback: "当前全局网关：{gateway}；仅在客户端未指定网关时使用。",
+        globalRouteForced: "当前全局网关：{gateway}；已强制覆盖客户端指定的网关。",
+        globalRouteLoadFailed: "全局路由设置加载失败：{error}", globalRouteSaved: "全局路由设置已保存。",
+        globalRouteSaveFailed: "全局路由设置保存失败：{error}", confirmClearGlobalRoute: "确定取消全局路由设置吗？",
+        globalRouteCleared: "全局路由设置已取消。", globalRouteClearFailed: "取消全局路由设置失败：{error}",
         domainDnsRouting: "指定域名 DNS 分流",
         domainDnsRoutingDesc: "这些域名及其子域名由 dns-gate 解析，其余域名仍使用 VPN DNS",
         searchDomains: "查找域名", domainSearchPlaceholder: "输入部分字符或多个关键字",
@@ -702,7 +743,7 @@
       },
       "en-US": {
         sidebarAria: "Feature navigation", brandSubtitle: "Routing and DNS split-tunneling console",
-        routeActions: "Route Actions", routeActionsDesc: "Add or batch-delete host routes for a KEY",
+        routeActions: "Route Actions", routeActionsDesc: "Add or delete host routes and configure the global gateway",
         domainDns: "Domain DNS", domainDnsDesc: "Manage domains resolved by dns-gate",
         globalDns: "Global DNS", globalDnsDesc: "Route public DNS queries by IANA top-level domains",
         memoryRoutes: "Managed Routes", memoryRoutesDesc: "View, expand, and delete routes managed by ip-router",
@@ -710,11 +751,22 @@
         domainJsonApi: "Domain JSON API", memoryJsonApi: "Managed Routes JSON API", systemJsonApi: "System Routes JSON API",
         refresh: "Refresh", addRoute: "Add Route", keyPlaceholder: "e.g. dns.google", targetIp: "Target IP",
         ipsPlaceholder: "Separate multiple IPs with commas or spaces", gatewayIp: "Gateway IP",
-        gatewayPlaceholder: "e.g. 192.168.1.1", ttlSeconds: "TTL (seconds)",
+        gatewayPlaceholder: "e.g. 192.168.1.1", routeGatewayPlaceholder: "Leave blank to use the global gateway",
+        ttlSeconds: "TTL (seconds)",
         ttlHint: "TTL 0 means permanent; multiple target IPs can be added to one KEY at once.",
         batchDelete: "Batch Delete", optionalKey: "KEY (optional)", deleteKeyPlaceholder: "Delete the entire KEY or combine with an IP",
         optionalTargetIp: "Target IP (optional)", deleteIpPlaceholder: "Delete every matching IP",
         deleteHint: "Enter at least one field; with both fields, only that IP under the KEY is deleted.", deleteRoute: "Delete Route",
+        globalRouteSettings: "Global Route Settings", globalRouteLoading: "Loading global route settings…",
+        globalGatewayIp: "Global Gateway IP", forceGlobalGateway: "Force the global gateway",
+        globalRouteHint: "The global gateway is used when the client omits a gateway; force mode also overrides a client-supplied gateway.",
+        saveGlobalRoute: "Save Global Route", clearGlobalRoute: "Disable Global Route",
+        globalRouteDisabled: "No global gateway is configured.",
+        globalRouteFallback: "Global gateway: {gateway}; used only when the client omits a gateway.",
+        globalRouteForced: "Global gateway: {gateway}; client-supplied gateways are forcibly overridden.",
+        globalRouteLoadFailed: "Failed to load global route settings: {error}", globalRouteSaved: "Global route settings saved.",
+        globalRouteSaveFailed: "Failed to save global route settings: {error}", confirmClearGlobalRoute: "Disable the global route setting?",
+        globalRouteCleared: "Global route setting disabled.", globalRouteClearFailed: "Failed to disable global route setting: {error}",
         domainDnsRouting: "Domain DNS Routing", domainDnsRoutingDesc: "These domains and subdomains use dns-gate; all others keep using VPN DNS",
         searchDomains: "Find Domains", domainSearchPlaceholder: "Enter partial text or multiple keywords",
         noDomainMatches: "No matching domains",
@@ -791,6 +843,10 @@
     const domainRows = document.getElementById("domain-rows");
     const domainSearch = document.getElementById("domain-search");
     const notice = document.getElementById("notice");
+    const globalRouteForm = document.getElementById("global-route-form");
+    const globalRouteStatus = document.getElementById("global-route-status");
+    const clearGlobalRoute = document.getElementById("clear-global-route");
+    const globalRouteState = { gateway: "", force: false, loaded: false };
     const tldSummary = document.getElementById("tld-summary");
     const hotTldList = document.getElementById("hot-tld-list");
     const tldList = document.getElementById("tld-list");
@@ -868,6 +924,7 @@
       renderTlds();
       renderRoutePage();
       renderSystemRoutePage();
+      renderGlobalRouteSettings();
       updateRouteCountdowns();
     }
 
@@ -941,6 +998,47 @@
     function showNotice(message, type) {
       notice.textContent = message;
       notice.className = `notice ${type}`;
+    }
+
+    function renderGlobalRouteSettings() {
+      if (!globalRouteState.loaded) {
+        globalRouteStatus.textContent = t("globalRouteLoading");
+      } else if (!globalRouteState.gateway) {
+        globalRouteStatus.textContent = t("globalRouteDisabled");
+      } else {
+        globalRouteStatus.textContent = t(globalRouteState.force
+          ? "globalRouteForced" : "globalRouteFallback",
+        { gateway: globalRouteState.gateway });
+      }
+      clearGlobalRoute.disabled = !globalRouteState.gateway;
+    }
+
+    async function routeSettingsRequest(method, values = {}) {
+      const options = { method, cache: "no-store" };
+      if (method === "POST") {
+        options.headers = { "Content-Type": "application/x-www-form-urlencoded;charset=UTF-8" };
+        options.body = new URLSearchParams(values);
+      }
+      const response = await fetch("/route-settings", options);
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(data.message || `HTTP ${response.status}`);
+      return data;
+    }
+
+    async function loadGlobalRouteSettings() {
+      globalRouteState.loaded = false;
+      renderGlobalRouteSettings();
+      try {
+        const data = await routeSettingsRequest("GET");
+        globalRouteState.gateway = data.enabled ? String(data.gateway || "") : "";
+        globalRouteState.force = Boolean(data.enabled && data.force);
+        globalRouteState.loaded = true;
+        globalRouteForm.elements.gateway.value = globalRouteState.gateway;
+        globalRouteForm.elements.force.checked = globalRouteState.force;
+        renderGlobalRouteSettings();
+      } catch (error) {
+        globalRouteStatus.textContent = t("globalRouteLoadFailed", { error: error.message });
+      }
     }
 
     async function routeRequest(method, parameters, path = "/route") {
@@ -1754,6 +1852,9 @@
 
     async function refreshWorkspace(targetId) {
       switch (targetId) {
+        case "route-actions":
+          await loadGlobalRouteSettings();
+          break;
         case "dns-domains":
           showDomainMessage(t("reloading"));
           await loadDomains();
@@ -1783,6 +1884,46 @@
       event.preventDefault();
       const active = document.querySelector(".workspace-view.active");
       if (active) await refreshWorkspace(active.id);
+    });
+
+    globalRouteForm.addEventListener("submit", async (event) => {
+      event.preventDefault();
+      const button = globalRouteForm.querySelector("button[type=submit]");
+      const gateway = globalRouteForm.elements.gateway.value.trim();
+      const force = globalRouteForm.elements.force.checked;
+      button.disabled = true;
+      try {
+        const data = await routeSettingsRequest("POST", {
+          gateway,
+          force: force ? "1" : "0"
+        });
+        globalRouteState.gateway = String(data.gateway || "");
+        globalRouteState.force = Boolean(data.force);
+        globalRouteState.loaded = true;
+        renderGlobalRouteSettings();
+        showNotice(t("globalRouteSaved"), "success");
+      } catch (error) {
+        showNotice(t("globalRouteSaveFailed", { error: error.message }), "error");
+      } finally {
+        button.disabled = false;
+      }
+    });
+
+    clearGlobalRoute.addEventListener("click", async () => {
+      if (!window.confirm(t("confirmClearGlobalRoute"))) return;
+      clearGlobalRoute.disabled = true;
+      try {
+        await routeSettingsRequest("DELETE");
+        globalRouteState.gateway = "";
+        globalRouteState.force = false;
+        globalRouteState.loaded = true;
+        globalRouteForm.reset();
+        renderGlobalRouteSettings();
+        showNotice(t("globalRouteCleared"), "success");
+      } catch (error) {
+        showNotice(t("globalRouteClearFailed", { error: error.message }), "error");
+        renderGlobalRouteSettings();
+      }
     });
 
     document.getElementById("add-form").addEventListener("submit", async (event) => {

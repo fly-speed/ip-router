@@ -16,7 +16,8 @@ namespace {
 
 bool reply_json(HttpResponse& response, int status, bool success,
 	const char* message, const char* destination = NULL,
-	const char* gateway = NULL, const char* key = NULL, long long ttl = -1)
+	const char* gateway = NULL, const char* key = NULL, long long ttl = -1,
+	int global_gateway_applied = -1)
 {
 	response.setStatus(status);
 	response.setContentType("application/json; charset=utf-8");
@@ -34,6 +35,9 @@ bool reply_json(HttpResponse& response, int status, bool success,
 	}
 	if (ttl >= 0) {
 		root.add_number("ttl", ttl);
+	}
+	if (global_gateway_applied >= 0) {
+		root.add_bool("global_gateway_applied", global_gateway_applied != 0);
 	}
 	return response.write(json);
 }
@@ -87,16 +91,69 @@ const char* get_route_key(HttpRequest& request)
 	return parameter(request, "key", "domain");
 }
 
+bool parse_boolean(const char* value, bool& result)
+{
+	std::string normalized = value != NULL ? value : "";
+	for (std::string::iterator it = normalized.begin();
+		it != normalized.end(); ++it) {
+		*it = static_cast<char>(tolower(static_cast<unsigned char>(*it)));
+	}
+	if (normalized.empty() || normalized == "0" || normalized == "false"
+		|| normalized == "no" || normalized == "off") {
+		result = false;
+		return true;
+	}
+	if (normalized == "1" || normalized == "true"
+		|| normalized == "yes" || normalized == "on") {
+		result = true;
+		return true;
+	}
+	return false;
+}
+
+bool resolve_add_gateway(HttpRequest& request, acl::string& gateway,
+	bool& global_applied, acl::string& error)
+{
+	const char* requested = parameter(request, "gateway", "route");
+	acl::string configured;
+	bool force = false;
+	route_manager::get_global_route(configured, force);
+	global_applied = !configured.empty()
+		&& (force || requested == NULL || *requested == 0);
+	if (global_applied) {
+		gateway = configured;
+		return true;
+	}
+	if (!route_manager::valid_ipv4(requested)) {
+		error = requested == NULL || *requested == 0
+			? "parameter 'gateway' is required when no global gateway is configured"
+			: "parameter 'gateway' must be a valid IPv4 address";
+		return false;
+	}
+	gateway = requested;
+	return true;
+}
+
 bool change_route(HttpRequest& request, HttpResponse& response, bool add)
 {
 	const char* destination = parameter(request, "ip", "target");
-	const char* gateway = parameter(request, "gateway", "route");
+	const char* requested_gateway = parameter(request, "gateway", "route");
+	acl::string effective_gateway;
+	bool global_gateway_applied = false;
+	acl::string gateway_error;
+	const char* gateway = requested_gateway;
 	const char* key = get_route_key(request);
 	if (!route_manager::valid_ipv4(destination)) {
 		return reply_json(response, 400, false,
 			"parameter 'ip' must be a valid IPv4 address");
 	}
-	if (!route_manager::valid_ipv4(gateway)) {
+	if (add && !resolve_add_gateway(request, effective_gateway,
+		global_gateway_applied, gateway_error)) {
+		return reply_json(response, 400, false, gateway_error.c_str());
+	}
+	if (add) {
+		gateway = effective_gateway.c_str();
+	} else if (!route_manager::valid_ipv4(gateway)) {
 		return reply_json(response, 400, false,
 			"parameter 'gateway' must be a valid IPv4 address");
 	}
@@ -126,11 +183,13 @@ bool change_route(HttpRequest& request, HttpResponse& response, bool add)
 			gateway, key);
 	}
 
-	logger("route %s succeeded, key=%s, ip=%s, gateway=%s, ttl=%lld",
-		add ? "add" : "delete", key, destination, gateway, ttl);
+	logger("route %s succeeded, key=%s, ip=%s, gateway=%s, ttl=%lld, "
+		"global_gateway_applied=%s", add ? "add" : "delete", key,
+		destination, gateway, ttl, global_gateway_applied ? "yes" : "no");
 	return reply_json(response, 200, true,
 		add ? "route added" : "route deleted", destination, gateway,
-		key, add ? ttl : -1);
+		key, add ? ttl : -1,
+		add ? (global_gateway_applied ? 1 : 0) : -1);
 }
 
 bool route_add(HttpRequest& request, HttpResponse& response)
@@ -140,12 +199,15 @@ bool route_add(HttpRequest& request, HttpResponse& response)
 		return change_route(request, response, true);
 	}
 
-	const char* gateway = parameter(request, "gateway", "route");
-	const char* key = get_route_key(request);
-	if (!route_manager::valid_ipv4(gateway)) {
-		return reply_json(response, 400, false,
-			"parameter 'gateway' must be a valid IPv4 address");
+	acl::string effective_gateway;
+	bool global_gateway_applied = false;
+	acl::string gateway_error;
+	if (!resolve_add_gateway(request, effective_gateway,
+		global_gateway_applied, gateway_error)) {
+		return reply_json(response, 400, false, gateway_error.c_str());
 	}
+	const char* gateway = effective_gateway.c_str();
+	const char* key = get_route_key(request);
 	if (key == NULL || *key == 0) {
 		return reply_json(response, 400, false,
 			"parameter 'key' is required");
@@ -197,17 +259,20 @@ bool route_add(HttpRequest& request, HttpResponse& response)
 		if (success) {
 			++succeeded;
 			logger("route add succeeded, key=%s, ip=%s, gateway=%s, "
-				"ttl=%lld", key, it->c_str(), gateway, ttl);
+				"ttl=%lld, global_gateway_applied=%s", key, it->c_str(),
+				gateway, ttl, global_gateway_applied ? "yes" : "no");
 		} else {
 			logger_error("route add failed, key=%s, ip=%s, gateway=%s, "
-				"ttl=%lld, error=%s", key, it->c_str(), gateway, ttl,
-				error.c_str());
+				"ttl=%lld, global_gateway_applied=%s, error=%s", key,
+				it->c_str(), gateway, ttl,
+				global_gateway_applied ? "yes" : "no", error.c_str());
 		}
 	}
 
 	bool all_succeeded = succeeded == destinations.size();
 	logger("route add completed, key=%s, gateway=%s, ttl=%lld, "
-		"requested=%lu, succeeded=%lu", key, gateway, ttl,
+		"global_gateway_applied=%s, requested=%lu, succeeded=%lu", key,
+		gateway, ttl, global_gateway_applied ? "yes" : "no",
 		static_cast<unsigned long>(destinations.size()),
 		static_cast<unsigned long>(succeeded));
 	int status = all_succeeded ? 200 : (succeeded == 0 ? 500 : 207);
@@ -217,6 +282,7 @@ bool route_add(HttpRequest& request, HttpResponse& response)
 		.add_text("message", all_succeeded
 			? "all routes added" : "one or more routes failed")
 		.add_text("gateway", gateway)
+		.add_bool("global_gateway_applied", global_gateway_applied)
 		.add_text("key", key ? key : "")
 		.add_number("ttl", ttl)
 		.add_number("count", static_cast<long long>(destinations.size()))
@@ -322,6 +388,64 @@ bool route_delete(HttpRequest& request, HttpResponse& response)
 		.add_number("succeeded", static_cast<long long>(succeeded))
 		.add_child("routes", results);
 	return response.write(json);
+}
+
+bool write_route_settings(HttpResponse& response, const char* message)
+{
+	acl::string gateway;
+	bool force = false;
+	route_manager::get_global_route(gateway, force);
+	response.setStatus(200);
+	response.setContentType("application/json; charset=utf-8");
+	acl::json json;
+	json.get_root()
+		.add_bool("success", true)
+		.add_text("message", message)
+		.add_bool("enabled", !gateway.empty())
+		.add_text("gateway", gateway.c_str())
+		.add_bool("force", force);
+	return response.write(json);
+}
+
+bool route_settings_get(HttpRequest&, HttpResponse& response)
+{
+	return write_route_settings(response, "global route settings loaded");
+}
+
+bool route_settings_set(HttpRequest& request, HttpResponse& response)
+{
+	const char* gateway = parameter(request, "gateway", "route");
+	if (!route_manager::valid_ipv4(gateway)) {
+		return reply_json(response, 400, false,
+			"parameter 'gateway' must be a valid IPv4 address");
+	}
+	bool force = false;
+	if (!parse_boolean(request.getParameter("force"), force)) {
+		return reply_json(response, 400, false,
+			"parameter 'force' must be a boolean value");
+	}
+	acl::string error;
+	if (!route_manager::set_global_route(gateway, force, error)) {
+		logger_error("save global route settings failed, gateway=%s, "
+			"force=%s, error=%s", gateway, force ? "yes" : "no",
+			error.c_str());
+		return reply_json(response, 500, false, error.c_str());
+	}
+	logger("global route settings saved, gateway=%s, force=%s",
+		gateway, force ? "yes" : "no");
+	return write_route_settings(response, "global route settings saved");
+}
+
+bool route_settings_delete(HttpRequest&, HttpResponse& response)
+{
+	acl::string error;
+	if (!route_manager::set_global_route("", false, error)) {
+		logger_error("clear global route settings failed, error=%s",
+			error.c_str());
+		return reply_json(response, 500, false, error.c_str());
+	}
+	logger("global route settings cleared");
+	return write_route_settings(response, "global route settings cleared");
 }
 
 bool health(HttpRequest&, HttpResponse& response)
@@ -616,13 +740,16 @@ void register_route_service(http_service& service)
 {
 	service.Get("/", route_page)
 		.Get("/health", health)
+		.Get("/route-settings", route_settings_get)
 		.Get("/domains", domain_list)
 		.Get("/tlds", tld_list)
 		.Get("/routes", route_list)
 		.Get("/system-routes", system_route_list)
 		.Post("/route", route_add)
+		.Post("/route-settings", route_settings_set)
 		.Post("/domain", domain_add)
 		.Delete("/route", route_delete)
+		.Delete("/route-settings", route_settings_delete)
 		.Delete("/domain", domain_delete)
 		.Delete("/system-route", system_route_delete);
 }

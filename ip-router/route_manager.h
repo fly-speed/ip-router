@@ -38,6 +38,9 @@ public:
 	static void start(void);
 	static void stop(void);
 	static bool valid_ipv4(const char* value);
+	static void get_global_route(acl::string& gateway, bool& force);
+	static bool set_global_route(const char* gateway, bool force,
+		acl::string& error);
 	static bool add(const char* destination, const char* gateway,
 		const char* key, long long ttl, acl::string& error);
 	static bool remove(const char* key, const char* destination,
